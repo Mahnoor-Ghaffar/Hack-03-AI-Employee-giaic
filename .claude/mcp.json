@@ -1,0 +1,22 @@
+{
+  "skills": [
+    {
+      "name": "process-file",
+      "module": "skills.process_file_skill",
+      "function": "process_file_skill"
+    },
+    {
+      "name": "vault",
+      "module": "skills.vault_skills",
+      "functions": [
+        "read_task",
+        "write_response",
+        "move_to_done",
+        "move_to_needs_action",
+        "update_dashboard",
+        "list_pending_tasks",
+        "get_task_summary"
+      ]
+    }
+  ]
+}

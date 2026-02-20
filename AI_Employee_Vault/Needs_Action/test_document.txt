@@ -1,0 +1,1 @@
+This is a test file for the AI Employee to process. It contains some sample text that should be read and summarized by the process-file skill.
