@@ -1,0 +1,164 @@
+# Prometheus Alert Rules for Platinum Tier AI Employee
+
+groups:
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+
+      # Critical CPU usage
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical CPU usage detected"
+          description: "CPU usage is above 95% for more than 2 minutes on {{ $labels.instance }}"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85% on {{ $labels.instance }}"
+
+      # Critical memory usage
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage detected"
+          description: "Memory usage is above 95% on {{ $labels.instance }}"
+
+      # Low disk space
+      - alert: LowDiskSpace
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space warning"
+          description: "Disk usage is above 80% on {{ $labels.instance }}"
+
+      # Critical disk space
+      - alert: CriticalDiskSpace
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) ) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk space"
+          description: "Disk usage is above 90% on {{ $labels.instance }}"
+
+  - name: docker_alerts
+    interval: 30s
+    rules:
+      # Container down
+      - alert: ContainerDown
+        expr: container_last_seen - time() > 60
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Docker container down"
+          description: "Container {{ $labels.name }} has been down for more than 1 minute"
+
+      # High container CPU
+      - alert: HighContainerCPU
+        expr: rate(container_cpu_usage_seconds_total[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High container CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is above 80%"
+
+      # High container memory
+      - alert: HighContainerMemory
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High container memory usage"
+          description: "Container {{ $labels.name }} memory usage is above 85%"
+
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # Odoo down
+      - alert: OdooDown
+        expr: up{job="odoo"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Odoo ERP is down"
+          description: "Odoo ERP service has been down for more than 2 minutes"
+
+      # Grafana down
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Grafana is down"
+          description: "Grafana monitoring service has been down for more than 5 minutes"
+
+      # Prometheus down
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus metrics collection has been down for more than 2 minutes"
+
+  - name: ai_employee_alerts
+    interval: 60s
+    rules:
+      # Cloud agent not responding (would need custom metrics endpoint)
+      - alert: CloudAgentNotResponding
+        expr: time() - cloud_agent_last_heartbeat > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Cloud Agent not responding"
+          description: "Cloud Agent has not sent heartbeat in more than 5 minutes"
+
+      # Local agent not responding
+      - alert: LocalAgentNotResponding
+        expr: time() - local_agent_last_heartbeat > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Local Agent not responding"
+          description: "Local Agent has not sent heartbeat in more than 5 minutes"
+
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(ai_employee_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in AI Employee"
+          description: "Error rate is above 0.1 errors per second"

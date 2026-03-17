@@ -9,6 +9,7 @@ class BaseWatcher(ABC):
         self.needs_action = self.vault_path / 'Needs_Action'
         self.check_interval = check_interval
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.needs_action.mkdir(parents=True, exist_ok=True)
 
     @abstractmethod
     def check_for_updates(self) -> list:
@@ -28,5 +29,5 @@ class BaseWatcher(ABC):
                 for item in items:
                     self.create_action_file(item)
             except Exception as e:
-                self.logger.error(f'Error: {e}')
+                self.logger.error(f'Error in {self.__class__.__name__}: {e}')
             time.sleep(self.check_interval)

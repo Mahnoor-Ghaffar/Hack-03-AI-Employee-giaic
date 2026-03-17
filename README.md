@@ -203,6 +203,41 @@ To advance to **Silver Tier**, add:
 
 ---
 
+## Production Architecture Overview
+
+### 1. Real Gmail API Integration
+- Uses `googleapiclient` for direct Gmail API communication
+- No SMTP simulation or mock implementations
+- All email operations execute against real Gmail infrastructure via REST API
+
+### 2. OAuth 2.0 Authentication
+- First-run requires browser-based OAuth consent screen
+- Token stored in `token.pickle` for automatic reuse on subsequent runs
+- Credentials automatically refreshed when expired
+- No hardcoded passwords or API keys in source code
+- Client secrets loaded from `client_secret.json` or `gmail_credentials.json`
+
+### 3. Human-in-the-Loop Approval Gate
+- All external actions require approval file in `Pending_Approval/` folder
+- Approval file must contain `approved: true` or `status: approved`
+- Prevents unauthorized execution of sensitive operations
+- Approved files moved to `Approved/`, rejected to `Rejected/`
+- Approval verification occurs before any action execution
+
+### 4. Retry Mechanism
+- Handles temporary API/network failures with configurable retries (default: 3)
+- Uses controlled backoff delay between retry attempts (default: 5 seconds)
+- `time.sleep()` used strictly for retry backoff in production environments
+- Exhausted retries move approval file to `Rejected/` folder
+- All retry attempts logged to `actions.log`
+
+### 5. Path Resolution
+- All file paths resolved using `Path(__file__).resolve().parent.parent`
+- No dependency on current working directory
+- Ensures consistent behavior regardless of execution context
+
+---
+
 ## 📊 Digital FTE vs Human FTE
 
 | Feature | Human FTE | Digital FTE |

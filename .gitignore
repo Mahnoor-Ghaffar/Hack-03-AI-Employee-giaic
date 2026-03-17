@@ -25,6 +25,10 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+.env.*.local
+.env.production
+.env.cloud
+.env.local
 
 # Credentials & Secrets (NEVER commit these)
 client_secret.json
@@ -33,9 +37,46 @@ token.pickle
 *.pem
 *.key
 credentials.json
+*.p12
+*.pfx
+secrets/
+secrets.json
+
+# Session Files (NEVER sync these)
+*.session
+*.session3d
+whatsapp_session/
+session/
+sessions/
+
+# Tokens
+tokens/
+*.token
+*.auth
 
 # Vault data (user's private data)
+# Platinum Tier: Sync only specific folders via .gitignore.allow
 AI_Employee_Vault/
+!AI_Employee_Vault/Updates/
+!AI_Employee_Vault/Signals/
+!AI_Employee_Vault/Plans/
+!AI_Employee_Vault/In_Progress/
+!AI_Employee_Vault/Approved/
+!AI_Employee_Vault/Done/
+!AI_Employee_Vault/Rejected/
+!AI_Employee_Vault/Accounting/*.md
+!AI_Employee_Vault/Social_Media/*.md
+!AI_Employee_Vault/Briefings/
+!AI_Employee_Vault/Logs/*.log
+!AI_Employee_Vault/Logs/*.md
+!AI_Employee_Vault/Dashboard.md
+!AI_Employee_Vault/Company_Handbook.md
+!AI_Employee_Vault/Business_Goals.md
+# NEVER sync these vault folders:
+AI_Employee_Vault/Ralph_State/
+AI_Employee_Vault/Inbox/
+AI_Employee_Vault/Needs_Action/
+AI_Employee_Vault/Pending_Approval/
 
 # Drop zone files (user files)
 drop_zone/

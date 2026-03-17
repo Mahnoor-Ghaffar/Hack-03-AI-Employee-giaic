@@ -17,6 +17,226 @@
         "list_pending_tasks",
         "get_task_summary"
       ]
+    },
+    {
+      "name": "human-approval",
+      "module": "scripts.request_approval",
+      "functions": [
+        "request_approval",
+        "check_approval_status",
+        "ApprovalStatus"
+      ]
+    },
+    {
+      "name": "mcp-executor",
+      "module": "mcp_executor",
+      "functions": [
+        "execute_from_file",
+        "get_execution_stats"
+      ]
+    },
+    {
+      "name": "task-planner",
+      "module": "skills.task_planner_skill",
+      "function": "plan_task"
+    },
+    {
+      "name": "silver-scheduler",
+      "module": "scripts.run_ai_employee",
+      "functions": [
+        "run_scheduler",
+        "check_status",
+        "stop_scheduler"
+      ]
+    },
+    {
+      "name": "odoo-erp",
+      "module": "scripts.odoo_mcp_server",
+      "functions": [
+        "create_odoo_connection",
+        "test_odoo_connection",
+        "create_invoice",
+        "record_payment",
+        "get_invoices",
+        "get_financial_report",
+        "create_journal_entry",
+        "get_account_balance"
+      ]
+    },
+    {
+      "name": "facebook-mcp",
+      "module": "scripts.facebook_mcp_server",
+      "functions": [
+        "post_facebook",
+        "post_instagram",
+        "get_page_insights",
+        "get_comments"
+      ]
+    },
+    {
+      "name": "twitter-mcp",
+      "module": "scripts.twitter_mcp_server",
+      "functions": [
+        "post_tweet",
+        "post_thread",
+        "get_twitter_summary",
+        "get_recent_tweets",
+        "check_twitter_auth"
+      ]
+    },
+    {
+      "name": "ceo-briefing",
+      "module": "scripts.ceo_briefing_generator",
+      "function": "generate_ceo_briefing"
+    },
+    {
+      "name": "ralph-wiggum",
+      "module": "scripts.ralph_wiggum_loop",
+      "functions": [
+        "run_ralph_loop",
+        "TaskStatus"
+      ]
+    },
+    {
+      "name": "business-mcp-server",
+      "module": "mcp.business_mcp.server",
+      "functions": [
+        "send_email",
+        "post_linkedin",
+        "log_activity"
+      ]
+    },
+    {
+      "name": "accounting-manager",
+      "module": "scripts.accounting_manager",
+      "functions": [
+        "log_transaction",
+        "get_transactions",
+        "get_totals",
+        "get_balance",
+        "generate_weekly_summary",
+        "generate_monthly_report",
+        "export_to_csv",
+        "export_to_json",
+        "AccountingManager"
+      ]
+    },
+    {
+      "name": "platinum-cloud",
+      "module": "orchestrator_cloud",
+      "functions": [
+        "process_email_triage",
+        "generate_social_drafts",
+        "sync_odoo_reports",
+        "send_urgent_signal"
+      ]
+    },
+    {
+      "name": "platinum-local",
+      "module": "orchestrator_local",
+      "functions": [
+        "merge_updates_to_dashboard",
+        "process_pending_approvals",
+        "process_whatsapp_messages",
+        "check_urgent_signals"
+      ]
+    },
+    {
+      "name": "git-sync",
+      "module": "git_sync",
+      "functions": [
+        "run_sync",
+        "get_status",
+        "pull_changes",
+        "push_changes"
+      ]
+    },
+    {
+      "name": "health-monitor",
+      "module": "health_monitor",
+      "functions": [
+        "check_process",
+        "restart_process",
+        "check_docker_containers",
+        "check_disk_space",
+        "check_memory"
+      ]
     }
-  ]
+  ],
+  "mcpServers": {
+    "business": {
+      "command": "python",
+      "args": ["mcp/business_mcp/server.py"],
+      "cwd": "E:\\New folder\\GIAIC-Q4\\sub-hack03\\Hack-03-AI-Employee-giaic",
+      "env": {
+        "VAULT_PATH": "AI_Employee_Vault",
+        "GMAIL_CREDENTIALS_FILE": "gmail_credentials.json",
+        "LINKEDIN_EMAIL": "${LINKEDIN_EMAIL}",
+        "LINKEDIN_PASSWORD": "${LINKEDIN_PASSWORD}",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "odoo": {
+      "command": "python",
+      "args": ["scripts/odoo_mcp_server.py"],
+      "cwd": "E:\\New folder\\GIAIC-Q4\\sub-hack03\\Hack-03-AI-Employee-giaic",
+      "env": {
+        "ODOO_URL": "${ODOO_URL}",
+        "ODOO_DB": "${ODOO_DB}",
+        "ODOO_USERNAME": "${ODOO_USERNAME}",
+        "ODOO_PASSWORD": "${ODOO_PASSWORD}",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "facebook": {
+      "command": "python",
+      "args": ["scripts/facebook_mcp_server.py"],
+      "cwd": "E:\\New folder\\GIAIC-Q4\\sub-hack03\\Hack-03-AI-Employee-giaic",
+      "env": {
+        "FACEBOOK_PAGES": "${FACEBOOK_PAGES}",
+        "INSTAGRAM_ACCOUNTS": "${INSTAGRAM_ACCOUNTS}",
+        "FACEBOOK_ACCESS_TOKEN": "${FACEBOOK_ACCESS_TOKEN}",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "twitter": {
+      "command": "python",
+      "args": ["scripts/twitter_mcp_server.py"],
+      "cwd": "E:\\New folder\\GIAIC-Q4\\sub-hack03\\Hack-03-AI-Employee-giaic",
+      "env": {
+        "TWITTER_USERNAME": "${TWITTER_USERNAME}",
+        "TWITTER_EMAIL": "${TWITTER_EMAIL}",
+        "TWITTER_PASSWORD": "${TWITTER_PASSWORD}",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "platinum-cloud": {
+      "command": "python",
+      "args": ["orchestrator_cloud.py"],
+      "cwd": "E:\\New folder\\GIAIC-Q4\\sub-hack03\\Hack-03-AI-Employee-giaic",
+      "env": {
+        "VAULT_PATH": "AI_Employee_Vault",
+        "GMAIL_READ_CREDENTIALS": "${GMAIL_READ_CREDENTIALS}",
+        "FACEBOOK_PAGES": "${FACEBOOK_PAGES}",
+        "INSTAGRAM_ACCOUNTS": "${INSTAGRAM_ACCOUNTS}",
+        "TWITTER_USERNAME": "${TWITTER_USERNAME}",
+        "ODOO_URL": "${ODOO_URL}",
+        "ODOO_DB": "${ODOO_DB}",
+        "ODOO_USERNAME": "${ODOO_USERNAME}",
+        "ODOO_PASSWORD": "${ODOO_PASSWORD}",
+        "PLATINUM_AGENT": "cloud_agent",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "platinum-local": {
+      "command": "python",
+      "args": ["orchestrator_local.py"],
+      "cwd": "E:\\New folder\\GIAIC-Q4\\sub-hack03\\Hack-03-AI-Employee-giaic",
+      "env": {
+        "VAULT_PATH": "AI_Employee_Vault",
+        "PLATINUM_AGENT": "local_agent",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
 }

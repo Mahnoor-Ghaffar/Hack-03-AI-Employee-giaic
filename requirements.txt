@@ -1,0 +1,29 @@
+# Gmail API Dependencies
+google-auth==2.27.0
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.118.0
+
+# Social Media Automation (Playwright for browser automation)
+playwright==1.40.0
+
+# HTTP Requests (for APIs)
+requests==2.31.0
+
+# Odoo ERP Integration (XML-RPC for Odoo 19+)
+# Uses built-in xmlrpc.client (Python standard library)
+
+# Logging and utilities
+python-dotenv==1.0.0
+
+# Gold Tier: Facebook/Instagram/Twitter Automation
+# Playwright handles browser automation for all social platforms
+
+# Gold Tier: Weekly Business Audit & CEO Briefing
+# Uses built-in datetime and pathlib (Python standard library)
+
+# Gold Tier: Ralph Wiggum Persistence Loop
+# Uses built-in subprocess and time (Python standard library)
+
+# Additional utilities for Gold Tier
+schedule==1.2.0  # For scheduled tasks (CEO Briefing every Monday)

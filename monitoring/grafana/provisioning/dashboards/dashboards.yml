@@ -1,0 +1,16 @@
+# Grafana Dashboard Provisioning
+# Automatically loads dashboards
+
+apiVersion: 1
+
+providers:
+  - name: 'Platinum Tier Dashboards'
+    orgId: 1
+    folder: 'AI Employee'
+    folderUid: 'ai-employee'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards

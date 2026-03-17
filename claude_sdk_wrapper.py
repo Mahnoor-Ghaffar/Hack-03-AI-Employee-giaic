@@ -1,0 +1,261 @@
+"""
+Mock AI Wrapper for AI Employee - Testing Without API Dependencies
+
+This module provides T class and TaskOutput function that return mock responses.
+Use this for testing the workflow without needing API keys or local models.
+"""
+
+import asyncio
+import uuid
+import threading
+import time
+from typing import Optional, Dict, Any, List
+from dataclasses import dataclass
+
+# Setup logging (Silver Tier log path)
+from log_manager import setup_logging
+logger = setup_logging(log_file="logs/ai_employee.log", logger_name="claude_sdk_wrapper")
+
+
+@dataclass
+class TaskResult:
+    """Result object returned by T() calls."""
+    task_id: str
+    status: str = "running"
+    output: Optional[str] = None
+    error: Optional[str] = None
+
+
+class T:
+    """
+    Task wrapper that returns mock responses for testing.
+
+    This class simulates subagent behavior without calling any external API.
+    Perfect for testing the workflow during development.
+    """
+
+    # Model mapping (kept for compatibility)
+    MODEL_MAP = {
+        'opus': 'mock-opus',
+        'sonnet': 'mock-sonnet',
+        'haiku': 'mock-haiku',
+    }
+
+    def __init__(
+        self,
+        description: str,
+        prompt: str,
+        subagent_type: str = 'general-purpose',
+        model: str = "sonnet",
+        run_in_background: bool = True,
+        allowed_tools: Optional[list] = None,
+        system_prompt: Optional[str] = None,
+    ):
+        """
+        Initialize and spawn a mock subagent task.
+        """
+        self.description = description
+        self.prompt = prompt
+        self.subagent_type = subagent_type
+        self.model = self.MODEL_MAP.get(model, 'mock')
+        self.run_in_background = run_in_background
+        self.allowed_tools = allowed_tools or ["Read", "Write", "Glob", "Edit", "Bash"]
+        self.system_prompt = system_prompt
+
+        # Generate a unique task ID
+        self.task_id = str(uuid.uuid4())
+
+        # Store the result
+        self._result: Optional[TaskResult] = None
+        self._output: Optional[str] = None
+
+        # Run the task synchronously or asynchronously
+        if not run_in_background:
+            self._run_sync()
+        else:
+            self._run_async()
+
+    def _run_sync(self):
+        """Run the task synchronously and wait for completion."""
+        try:
+            result = self._execute_task_sync()
+            self._output = result
+            self._result = TaskResult(
+                task_id=self.task_id,
+                status="completed",
+                output=result
+            )
+        except Exception as e:
+            self._result = TaskResult(
+                task_id=self.task_id,
+                status="error",
+                error=str(e)
+            )
+
+    def _run_async(self):
+        """Run the task asynchronously (non-blocking)."""
+        thread = threading.Thread(target=self._run_background_task, daemon=True)
+        thread.start()
+        self._result = TaskResult(
+            task_id=self.task_id,
+            status="running"
+        )
+
+    def _run_background_task(self):
+        """Run the task in a background thread."""
+        try:
+            result = self._execute_task_sync()
+            self._output = result
+            if self._result:
+                self._result.status = "completed"
+                self._result.output = result
+            logger.info(f"Mock task {self.task_id} completed")
+        except Exception as e:
+            if self._result:
+                self._result.status = "error"
+                self._result.error = str(e)
+            logger.error(f"Mock task {self.task_id} error: {e}")
+
+    def _execute_task_sync(self) -> str:
+        """
+        Execute a mock task and return a simulated response.
+        """
+        # Simulate processing time
+        time.sleep(2)
+        
+        # Generate context-aware mock response
+        if self.subagent_type == 'task-planner':
+            return self._generate_plan_response()
+        elif 'linkedin' in self.description.lower():
+            return self._generate_linkedin_response()
+        else:
+            return self._generate_generic_response()
+
+    def _generate_plan_response(self) -> str:
+        """Generate a mock plan response."""
+        return f"""## Plan Generated for: {self.description}
+
+### Analysis
+I've analyzed the task file and identified the following key requirements.
+
+### Implementation Plan
+
+1. **Review Task Requirements**
+   - [ ] Read and understand the task file content
+   - [ ] Identify key objectives and constraints
+   - [ ] Determine required resources
+
+2. **Implementation Steps**
+   - [ ] Set up necessary components
+   - [ ] Execute primary tasks
+   - [ ] Validate results
+
+3. **Quality Assurance**
+   - [ ] Test all components
+   - [ ] Verify expected outcomes
+   - [ ] Document any issues
+
+4. **Completion**
+   - [ ] Final review
+   - [ ] Update status to complete
+   - [ ] Archive working files
+
+---
+*This plan was generated by the AI Employee task-planner skill.*
+*Status: Ready for execution*
+"""
+
+    def _generate_linkedin_response(self) -> str:
+        """Generate a mock LinkedIn post response."""
+        return f"""## LinkedIn Post Draft
+
+Based on the content provided, here's a suggested LinkedIn post:
+
+---
+
+🚀 **Exciting Progress Update!**
+
+I'm thrilled to share some amazing progress on our AI Employee project!
+
+**What we're building:**
+An autonomous AI agent system that helps automate daily tasks and boost productivity.
+
+**Key achievements:**
+✅ Implemented file monitoring and task routing
+✅ Integrated multi-platform support (Gmail, LinkedIn)
+✅ Built intelligent action file generation
+
+**Next steps:**
+🔹 Expanding AI capabilities
+🔹 Adding more automation workflows
+🔹 Enhancing decision-making
+
+Stay tuned for more updates! 🎯
+
+#AI #Automation #Productivity #Innovation #TechProgress
+
+---
+
+*Generated by AI Employee LinkedIn skill*
+"""
+
+    def _generate_generic_response(self) -> str:
+        """Generate a generic mock response."""
+        return f"""## Task Completed: {self.description}
+
+**Subagent Type:** {self.subagent_type}
+**Model:** {self.model}
+
+### Summary
+The task has been processed successfully. This is a mock response for testing purposes.
+
+### Details
+- Task ID: {self.task_id}
+- Description: {self.description}
+- Status: Completed
+
+---
+*This is a mock response from the AI Employee mock wrapper.*
+"""
+
+    def get_result(self) -> TaskResult:
+        """Get the current task result."""
+        return self._result or TaskResult(task_id=self.task_id, status="unknown")
+
+    @property
+    def output(self) -> Optional[str]:
+        """Get the task output if completed."""
+        return self._output
+
+
+def TaskOutput(task_id: str, block: bool = True, timeout: int = 300000) -> Dict[str, Any]:
+    """
+    Get the output of a completed task.
+    """
+    return {
+        "task_id": task_id,
+        "output": "",
+        "status": "completed" if not block else "retrieved"
+    }
+
+
+async def spawn_subagent(
+    subagent_type: str,
+    description: str,
+    prompt: str,
+    model: str = "sonnet",
+    run_in_background: bool = True,
+    allowed_tools: Optional[list] = None,
+) -> TaskResult:
+    """
+    Spawn a mock subagent.
+    """
+    task = T(
+        description=description,
+        prompt=prompt,
+        subagent_type=subagent_type,
+        model=model,
+        run_in_background=run_in_background,
+        allowed_tools=allowed_tools,
+    )
+    return task.get_result()

@@ -1,108 +1,60 @@
-"""
-Log Manager - Prevent log files from growing forever.
-
-This script checks log files and rotates them if they exceed 1 MB.
-When a file is too large, it gets renamed with a timestamp and a fresh empty file is created.
-
-Usage:
-    python log_manager.py
-"""
-
-import os
-from datetime import datetime
+import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-# Maximum file size in bytes (1 MB = 1024 * 1024 bytes)
-MAX_FILE_SIZE = 1 * 1024 * 1024
+# Maximum file size in bytes (5 MB = 5 * 1024 * 1024 bytes) - Silver Tier requirement
+MAX_FILE_SIZE = 5 * 1024 * 1024
+BACKUP_COUNT = 5  # Keep up to 5 backup log files
 
-
-def get_file_size(file_path: Path) -> int:
+def setup_logging(log_file: str = "logs/ai_employee.log", level=logging.INFO, logger_name: str = "ai_employee_logger"):
     """
-    Get the size of a file in bytes.
-    Returns 0 if the file doesn't exist.
+    Sets up a centralized logging system with file rotation.
+
+    Args:
+        log_file: The path to the log file. Default: logs/ai_employee.log
+        level: The logging level (e.g., logging.INFO, logging.DEBUG).
+        logger_name: Name of the logger instance.
+
+    Returns:
+        Configured logger instance.
     """
-    if file_path.exists():
-        return file_path.stat().st_size
-    return 0
+    log_path = Path(log_file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure log directory exists
 
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(level)
 
-def rotate_log_file(file_path: Path):
-    """
-    Rotate a log file by renaming it with a timestamp and creating a fresh empty file.
-    
-    Example:
-        System_Log.md -> System_Log_2026-01-29_143022.md
-    """
-    # Get the file parts (name and extension)
-    stem = file_path.stem  # filename without extension
-    suffix = file_path.suffix  # extension (e.g., .md, .log)
-    parent = file_path.parent  # parent directory
-    
-    # Create timestamp string for the backup filename
-    # Format: YYYY-MM-DD_HHMMSS (e.g., 2026-01-29_143022)
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    
-    # Build the new name with timestamp
-    new_name = f"{stem}_{timestamp}{suffix}"
-    backup_path = parent / new_name
-    
-    # Rename the old file to the backup name
-    file_path.rename(backup_path)
-    print(f"Rotated: {file_path} -> {backup_path}")
-    
-    # Create a fresh empty file with the original name
-    file_path.touch()
-    print(f"Created fresh empty file: {file_path}")
+    # Prevent adding multiple handlers if setup is called multiple times
+    if not logger.handlers:
+        # File handler for rotating logs (5MB rotation - Silver Tier requirement)
+        file_handler = RotatingFileHandler(
+            log_path,
+            maxBytes=MAX_FILE_SIZE,
+            backupCount=BACKUP_COUNT,
+            encoding="utf-8"
+        )
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        ))
+        logger.addHandler(file_handler)
 
+        # Console handler for output to stdout
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s'
+        ))
+        logger.addHandler(console_handler)
 
-def check_and_rotate(file_path: Path):
-    """
-    Check if a log file exceeds the size limit and rotate it if needed.
-    """
-    if not file_path.exists():
-        print(f"File does not exist (skipping): {file_path}")
-        return
-    
-    # Get current file size
-    size_bytes = get_file_size(file_path)
-    size_mb = size_bytes / (1024 * 1024)
-    
-    print(f"Checking: {file_path}")
-    print(f"  Current size: {size_mb:.2f} MB")
-    
-    # Check if file exceeds the limit
-    if size_bytes > MAX_FILE_SIZE:
-        print(f"  File exceeds 1 MB limit - rotating...")
-        rotate_log_file(file_path)
-    else:
-        print(f"  File is within limit - no action needed")
+    return logger
 
-
-def main():
-    """
-    Main function - check all log files and rotate if needed.
-    """
-    print("=" * 50)
-    print("Log Manager - Checking log files for rotation")
-    print("=" * 50)
-    print()
-    
-    # Define the log files to check
-    # These are relative to the current directory
-    log_files = [
-        Path("System_Log.md"),
-        Path("Logs/watcher_errors.log"),
-    ]
-    
-    # Check each log file
-    for log_file in log_files:
-        check_and_rotate(log_file)
-        print()
-    
-    print("=" * 50)
-    print("Log check complete!")
-    print("=" * 50)
-
-
+# Example usage (for testing, not part of the main application flow)
 if __name__ == '__main__':
-    main()
+    logger = setup_logging(level=logging.DEBUG)
+    logger.info("Log manager initialized.")
+    logger.debug("This is a debug message.")
+    logger.warning("This is a warning message.")
+    logger.error("This is an error message.")
+
+    # Simulate writing enough to trigger rotation (if needed)
+    # for i in range(1000):
+    #     logger.info(f"Test log entry {i}. This is a relatively long line to fill up the file faster. " * 10)

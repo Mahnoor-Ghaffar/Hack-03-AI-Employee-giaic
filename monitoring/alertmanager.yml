@@ -1,0 +1,61 @@
+# Alertmanager Configuration
+# Routes alerts to appropriate receivers
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'localhost:25'
+  smtp_from: 'alertmanager@ai-employee.local'
+
+# Route alerts based on severity
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default-receiver'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      continue: true
+    - match:
+        severity: warning
+      receiver: 'warning-receiver'
+
+# Inhibition rules
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+
+# Receivers
+receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/critical'
+        send_resolved: true
+
+  - name: 'warning-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/warning'
+        send_resolved: true
+
+# For email notifications (configure SMTP)
+# receivers:
+#   - name: 'email-notifications'
+#     email_configs:
+#       - to: 'admin@example.com'
+#         send_resolved: true
+#         from: 'alertmanager@example.com'
+#         smarthost: 'smtp.example.com:587'
+#         auth_username: 'alertmanager@example.com'
+#         auth_password: 'smtp_password'
+#         headers:
+#           Subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'

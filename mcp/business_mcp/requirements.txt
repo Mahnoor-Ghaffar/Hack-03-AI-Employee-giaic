@@ -1,0 +1,17 @@
+# Business MCP Server Dependencies
+# Install: pip install -r requirements.txt
+
+# MCP SDK (Model Context Protocol)
+mcp>=1.0.0
+
+# Gmail API (for send_email tool)
+google-auth==2.27.0
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.118.0
+
+# LinkedIn Automation (for post_linkedin tool)
+playwright==1.40.0
+
+# Utilities
+python-dotenv==1.0.0

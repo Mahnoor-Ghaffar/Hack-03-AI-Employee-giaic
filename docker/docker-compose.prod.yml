@@ -1,0 +1,146 @@
+# Platinum Tier - Production Odoo Deployment
+# Docker Compose for Cloud VM (Oracle/AWS Free Tier)
+#
+# Features:
+# - Odoo 19 Community Edition
+# - PostgreSQL 15
+# - Automated daily backups
+# - HTTPS via Nginx reverse proxy
+# - Health checks
+# - Resource limits
+#
+# Usage:
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Access:
+#   Odoo: https://your-domain.com:8069
+#   PgAdmin: https://your-domain.com:8080
+
+version: '3.8'
+
+services:
+  # Odoo Community Edition 19 (Production)
+  odoo:
+    image: odoo:19.0-community
+    container_name: odoo_prod
+    restart: always
+    ports:
+      - "127.0.0.1:8069:8069"  # Only accessible via Nginx
+    environment:
+      - HOST=db
+      - DATABASE=odoo_db
+      - USER=odoo
+      - PASSWORD=${ODOO_DB_PASSWORD:-odoo_secure_password}
+      - PORT=5432
+      - DB_NAME=odoo_db
+      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-admin_secure_password}
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./odoo/config:/etc/odoo
+      - ./odoo/addons:/mnt/extra-addons
+      - ./odoo/backups:/backups
+      - ./odoo/logs:/var/log/odoo
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - odoo_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8069"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    container_name: odoo_db_prod
+    restart: always
+    environment:
+      - POSTGRES_DB=odoo_db
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=${ODOO_DB_PASSWORD:-odoo_secure_password}
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+      - ./odoo/backups/db:/backups
+    networks:
+      - odoo_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo -d odoo_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Automated Backups
+  backup:
+    image: prodrigestivill/postgres-backup-local:15
+    container_name: odoo_backup
+    restart: always
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=odoo_db
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=${ODOO_DB_PASSWORD:-odoo_secure_password}
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_WEEKS=4
+      - BACKUP_KEEP_MONTHS=6
+      - HEALTHCHECK_DB_SIZE=1
+    volumes:
+      - ./odoo/backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - odoo_network
+
+  # PgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: odoo_pgadmin_prod
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@example.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-pgadmin_secure_password}
+      - PGADMIN_CONFIG_SERVER_MODE=True
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - db
+    networks:
+      - odoo_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  odoo-web-data:
+    driver: local
+  odoo-db-data:
+    driver: local
+  pgadmin-data:
+    driver: local
+
+networks:
+  odoo_network:
+    driver: bridge
