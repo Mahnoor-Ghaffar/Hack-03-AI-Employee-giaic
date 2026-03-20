@@ -1,1029 +1,702 @@
 #!/usr/bin/env python3
-"""
-CEO Briefing Generator - Gold Tier
+# =============================================================================
+# CEO Weekly Briefing Generator
+# =============================================================================
+# Generates automated weekly CEO briefing every Sunday
+# Reads: /Done folder, Accounting data
+# Summarizes: Revenue, Completed tasks, Pending approvals, Issues
+# Output: /Vault/Briefings/YYYY-MM-DD_CEO_Briefing.md
+# =============================================================================
 
-Automated weekly CEO briefing generator that aggregates data from all AI Employee systems.
-
-Generates: AI_Employee_Vault/Reports/CEO_Weekly.md
-
-Includes:
-- Tasks completed
-- Emails sent
-- LinkedIn/Facebook/Twitter posts
-- Pending approvals
-- Income/Expense summary
-- System health
-
-Auto-run via scheduler every Monday at 7:00 AM.
-
-Usage:
-    python scripts/ceo_briefing.py auto
-    python scripts/ceo_briefing.py weekly
-    python scripts/ceo_briefing.py daily
-
-Author: AI Employee Project
-Version: 1.0.0
-License: MIT
-"""
-
-import argparse
-import json
-import logging
 import os
 import sys
+import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass, asdict
+from collections import defaultdict
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger('ceo_briefing')
 
+# =============================================================================
 # Configuration
-VAULT_PATH = Path(os.getenv('VAULT_PATH', 'AI_Employee_Vault'))
-REPORTS_PATH = VAULT_PATH / 'Reports'
-LOGS_PATH = VAULT_PATH / 'Logs'
-DONE_PATH = VAULT_PATH / 'Done'
-PENDING_APPROVAL_PATH = VAULT_PATH / 'Pending_Approval'
-NEEDS_APPROVAL_PATH = VAULT_PATH / 'Needs_Approval'
-ACCOUNTING_PATH = VAULT_PATH / 'Accounting'
+# =============================================================================
+
+# Base paths
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+VAULT_ROOT = PROJECT_ROOT / "AI_Employee_Vault"
+
+# Input folders
+DONE_FOLDER = VAULT_ROOT / "Done"
+ACCOUNTING_FOLDER = VAULT_ROOT / "Accounting"
+PENDING_APPROVAL_FOLDER = VAULT_ROOT / "Pending_Approval"
+LOGS_FOLDER = VAULT_ROOT / "Logs"
+REJECTED_FOLDER = VAULT_ROOT / "Rejected"
+
+# Output folder
+BRIEFINGS_FOLDER = VAULT_ROOT / "Briefings"
+
+# Briefing file naming
+BRIEFING_DATE_FORMAT = "%Y-%m-%d"
+BRIEFING_FILENAME_FORMAT = "%Y-%m-%d_CEO_Briefing.md"
 
 
-class CEOBriefing:
-    """
-    CEO Briefing Generator.
+# =============================================================================
+# Data Structures
+# =============================================================================
+
+@dataclass
+class RevenueData:
+    """Revenue information from accounting"""
+    total_revenue: float = 0.0
+    pending_invoices: float = 0.0
+    paid_invoices: float = 0.0
+    invoice_count: int = 0
+    payment_count: int = 0
+    currency: str = "$"
+
+
+@dataclass
+class TaskSummary:
+    """Completed tasks summary"""
+    total_completed: int = 0
+    by_category: Dict[str, int] = None
+    by_day: Dict[str, int] = None
     
-    Aggregates data from all AI Employee systems to create
-    comprehensive weekly executive reports.
-    """
+    def __post_init__(self):
+        if self.by_category is None:
+            self.by_category = {}
+        if self.by_day is None:
+            self.by_day = {}
 
-    def __init__(self, vault_path: str = None):
-        """
-        Initialize CEO Briefing generator.
-        
-        Args:
-            vault_path: Path to AI Employee vault
-        """
-        self.vault_path = Path(vault_path) if vault_path else VAULT_PATH
-        self.reports_path = self.vault_path / 'Reports'
-        self.logs_path = self.vault_path / 'Logs'
-        self.done_path = self.vault_path / 'Done'
-        self.pending_approval_path = self.vault_path / 'Pending_Approval'
-        self.needs_approval_path = self.vault_path / 'Needs_Approval'
-        self.accounting_path = self.vault_path / 'Accounting'
-        
-        # Ensure directories exist
-        self.reports_path.mkdir(parents=True, exist_ok=True)
-        self.logs_path.mkdir(parents=True, exist_ok=True)
-        
-        logger.info(f'CEOBriefing initialized. Vault: {self.vault_path}')
 
-    def get_week_date_range(self) -> tuple:
-        """
-        Get date range for current week (last Monday to Sunday).
-        
-        Returns:
-            Tuple of (week_start, week_end) as strings (YYYY-MM-DD)
-        """
-        today = datetime.now()
-        days_since_monday = today.weekday()
-        
-        # Last Monday
-        last_monday = today - timedelta(days=days_since_monday, weeks=1)
-        week_start = last_monday.strftime('%Y-%m-%d')
-        
-        # Next Sunday
-        week_end = (last_monday + timedelta(days=6)).strftime('%Y-%m-%d')
-        
-        return week_start, week_end
+@dataclass
+class PendingApproval:
+    """Pending approval item"""
+    filename: str
+    category: str
+    created_date: str
+    days_pending: int
 
-    def get_tasks_completed(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
-        """
-        Get completed tasks for period.
+
+@dataclass
+class Issue:
+    """Issue/error item"""
+    source: str
+    description: str
+    count: int
+    last_occurrence: str
+
+
+@dataclass
+class WeeklyBriefing:
+    """Complete weekly briefing data"""
+    period_start: str
+    period_end: str
+    generated_at: str
+    revenue: RevenueData
+    completed_tasks: TaskSummary
+    pending_approvals: List[PendingApproval]
+    issues: List[Issue]
+    highlights: List[str]
+    recommendations: List[str]
+
+
+# =============================================================================
+# Data Collectors
+# =============================================================================
+
+class RevenueCollector:
+    """Collects revenue data from Accounting folder"""
+    
+    def __init__(self, accounting_folder: Path):
+        self.folder = accounting_folder
+    
+    def collect(self, start_date: datetime, end_date: datetime) -> RevenueData:
+        """Collect revenue data for the period"""
+        revenue = RevenueData()
         
-        Args:
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
-            
-        Returns:
-            List of completed task dictionaries
-        """
-        tasks = []
+        if not self.folder.exists():
+            return revenue
         
-        if not self.done_path.exists():
-            return tasks
-        
-        # Read all task files in Done folder
-        for task_file in self.done_path.glob('*.md'):
-            try:
-                content = task_file.read_text()
-                
-                # Extract metadata from frontmatter
-                task_data = {
-                    'file': task_file.name,
-                    'completed_date': None,
-                    'description': '',
-                    'notes': ''
-                }
-                
-                # Parse frontmatter
-                if '---' in content:
-                    parts = content.split('---')
-                    if len(parts) > 1:
-                        frontmatter = parts[1]
-                        for line in frontmatter.split('\n'):
-                            if ':' in line:
-                                key, value = line.split(':', 1)
-                                key = key.strip()
-                                value = value.strip()
-                                if key == 'completed_date':
-                                    task_data['completed_date'] = value
-                                elif key == 'description':
-                                    task_data['description'] = value
-                
-                # Check if within date range
-                if task_data['completed_date']:
-                    if start_date <= task_data['completed_date'] <= end_date:
-                        # Get description from content
-                        if '#' in content:
-                            desc_lines = [line for line in content.split('\n') if line.startswith('# ')]
-                            if desc_lines:
-                                task_data['description'] = desc_lines[0].replace('# ', '').strip()
-                        
-                        tasks.append(task_data)
-                        
-            except Exception as e:
-                logger.warning(f'Error reading task file {task_file.name}: {e}')
+        # Look for invoice and payment files
+        for file_path in self.folder.iterdir():
+            if not file_path.is_file():
                 continue
-        
-        # Sort by date
-        tasks.sort(key=lambda x: x.get('completed_date', ''), reverse=True)
-        
-        return tasks
-
-    def get_emails_sent(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
-        """
-        Get emails sent for period.
-        
-        Args:
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
             
-        Returns:
-            List of sent email dictionaries
-        """
-        emails = []
-        
-        # Try to read email log
-        email_log = self.logs_path / 'emails.log'
-        if not email_log.exists():
-            # Try alternative: read from Approved folder
-            approved_path = self.vault_path / 'Approved'
-            if approved_path.exists():
-                for email_file in approved_path.glob('EMAIL_*.md'):
-                    try:
-                        content = email_file.read_text()
-                        
-                        email_data = {
-                            'file': email_file.name,
-                            'date': None,
-                            'recipient': '',
-                            'subject': '',
-                            'status': 'Sent'
-                        }
-                        
-                        # Parse frontmatter
-                        if '---' in content:
-                            parts = content.split('---')
-                            if len(parts) > 1:
-                                frontmatter = parts[1]
-                                for line in frontmatter.split('\n'):
-                                    if ':' in line:
-                                        key, value = line.split(':', 1)
-                                        key = key.strip()
-                                        value = value.strip()
-                                        if key == 'date' or key == 'created':
-                                            email_data['date'] = value
-                                        elif key == 'to':
-                                            email_data['recipient'] = value
-                                        elif key == 'subject':
-                                            email_data['subject'] = value
-                        
-                        if email_data['date']:
-                            if start_date <= email_data['date'] <= end_date:
-                                emails.append(email_data)
-                                
-                    except Exception as e:
-                        logger.warning(f'Error reading email file {email_file.name}: {e}')
-                        continue
-            return emails
-        
-        # Parse email log file
-        try:
-            with open(email_log, 'r') as f:
-                for line in f:
-                    if 'EMAIL_SENT' in line or 'Sent' in line:
-                        try:
-                            # Parse log line
-                            parts = line.strip().split(' | ')
-                            if len(parts) >= 3:
-                                email_data = {
-                                    'date': parts[0].strip('[] '),
-                                    'recipient': parts[1].strip() if len(parts) > 1 else '',
-                                    'subject': parts[2].strip() if len(parts) > 2 else '',
-                                    'status': 'Sent'
-                                }
-                                
-                                if start_date <= email_data['date'] <= end_date:
-                                    emails.append(email_data)
-                        except Exception:
-                            continue
-        except Exception as e:
-            logger.warning(f'Error reading email log: {e}')
-        
-        return emails
-
-    def get_social_media_activity(self, start_date: str, end_date: str) -> Dict[str, Any]:
-        """
-        Get social media activity for period.
-        
-        Args:
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
-            
-        Returns:
-            Dictionary with platform metrics
-        """
-        activity = {
-            'linkedin': {'posts': 0, 'impressions': 0, 'engagement': 0},
-            'facebook': {'posts': 0, 'reach': 0, 'engagement': 0},
-            'instagram': {'posts': 0, 'likes': 0, 'comments': 0},
-            'twitter': {'tweets': 0, 'impressions': 0, 'followers': 0}
-        }
-        
-        # Read social media log
-        social_log = self.logs_path / 'social_media.log'
-        if not social_log.exists():
-            # Try alternative: read from Social_Media folder
-            social_path = self.vault_path / 'Social_Media'
-            if social_path.exists():
-                for post_file in social_path.glob('*.md'):
-                    try:
-                        content = post_file.read_text()
-                        
-                        # Detect platform
-                        if 'linkedin' in content.lower():
-                            platform = 'linkedin'
-                        elif 'facebook' in content.lower():
-                            platform = 'facebook'
-                        elif 'instagram' in content.lower():
-                            platform = 'instagram'
-                        elif 'twitter' in content.lower():
-                            platform = 'twitter'
+            try:
+                content = file_path.read_text()
+                
+                # Extract amounts from invoices
+                if self._is_invoice(file_path):
+                    amount = self._extract_amount(content)
+                    if amount:
+                        revenue.invoice_count += 1
+                        if self._is_paid(content):
+                            revenue.paid_invoices += amount
                         else:
-                            continue
-                        
-                        activity[platform]['posts'] += 1
-                        
-                    except Exception as e:
-                        logger.warning(f'Error reading social file {post_file.name}: {e}')
-                        continue
-            return activity
+                            revenue.pending_invoices += amount
+                
+                # Extract payment amounts
+                elif self._is_payment(file_path):
+                    amount = self._extract_amount(content)
+                    if amount:
+                        revenue.payment_count += 1
+                        revenue.paid_invoices += amount
+                
+            except Exception as e:
+                print(f"Error reading {file_path}: {e}")
         
-        # Parse social media log
-        try:
-            with open(social_log, 'r') as f:
-                for line in f:
+        revenue.total_revenue = revenue.paid_invoices
+        return revenue
+    
+    def _is_invoice(self, file_path: Path) -> bool:
+        """Check if file is an invoice"""
+        name = file_path.name.lower()
+        return "invoice" in name or "inv-" in name or name.startswith("inv")
+    
+    def _is_payment(self, file_path: Path) -> bool:
+        """Check if file is a payment record"""
+        name = file_path.name.lower()
+        return "payment" in name or "receipt" in name or "paid" in name
+    
+    def _extract_amount(self, content: str) -> Optional[float]:
+        """Extract amount from file content"""
+        # Look for patterns like $100.00, 100.00, Amount: 100
+        patterns = [
+            r'\$[\d,]+\.?\d*',
+            r'amount[:\s]*\$?[\d,]+\.?\d*',
+            r'total[:\s]*\$?[\d,]+\.?\d*',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                text = match.group()
+                # Extract just the number
+                numbers = re.findall(r'[\d,]+\.?\d*', text)
+                if numbers:
                     try:
-                        parts = line.strip().split(' | ')
-                        if len(parts) >= 2:
-                            date = parts[0].strip('[] ')
-                            if start_date <= date <= end_date:
-                                if 'LINKEDIN' in line:
-                                    activity['linkedin']['posts'] += 1
-                                elif 'FACEBOOK' in line:
-                                    activity['facebook']['posts'] += 1
-                                elif 'INSTAGRAM' in line:
-                                    activity['instagram']['posts'] += 1
-                                elif 'TWITTER' in line:
-                                    activity['twitter']['tweets'] += 1
-                    except Exception:
-                        continue
-        except Exception as e:
-            logger.warning(f'Error reading social media log: {e}')
-        
-        return activity
+                        return float(numbers[0].replace(',', ''))
+                    except ValueError:
+                        pass
+        return None
+    
+    def _is_paid(self, content: str) -> bool:
+        """Check if invoice is marked as paid"""
+        paid_indicators = ['paid', 'payment received', 'settled', 'completed']
+        content_lower = content.lower()
+        return any(indicator in content_lower for indicator in paid_indicators)
 
-    def get_pending_approvals(self) -> List[Dict[str, Any]]:
-        """
-        Get pending approval items.
+
+class TaskCollector:
+    """Collects completed tasks from Done folder"""
+    
+    def __init__(self, done_folder: Path):
+        self.folder = done_folder
+    
+    def collect(self, start_date: datetime, end_date: datetime) -> TaskSummary:
+        """Collect completed tasks for the period"""
+        summary = TaskSummary()
+        by_category = defaultdict(int)
+        by_day = defaultdict(int)
         
-        Returns:
-            List of pending approval dictionaries
-        """
+        if not self.folder.exists():
+            return summary
+        
+        for file_path in self.folder.iterdir():
+            if not file_path.is_file():
+                continue
+            
+            try:
+                # Get file modification time
+                mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                
+                # Check if within period
+                if start_date <= mtime <= end_date:
+                    summary.total_completed += 1
+                    
+                    # Categorize by file type/folder
+                    category = self._categorize(file_path)
+                    by_category[category] += 1
+                    
+                    # Group by day
+                    day_name = mtime.strftime("%A")
+                    by_day[day_name] += 1
+                    
+            except Exception as e:
+                print(f"Error reading {file_path}: {e}")
+        
+        summary.by_category = dict(by_category)
+        summary.by_day = dict(by_day)
+        return summary
+    
+    def _categorize(self, file_path: Path) -> str:
+        """Categorize task by file type or content"""
+        name = file_path.name.lower()
+        suffix = file_path.suffix.lower()
+        
+        # By file extension
+        if suffix == '.md':
+            # By filename patterns
+            if 'email' in name:
+                return 'Email'
+            elif 'social' in name or 'post' in name or 'linkedin' in name:
+                return 'Social Media'
+            elif 'invoice' in name or 'payment' in name:
+                return 'Accounting'
+            elif 'report' in name:
+                return 'Reports'
+            elif 'plan' in name:
+                return 'Planning'
+            elif 'brief' in name:
+                return 'Briefings'
+        
+        # By parent folder
+        parent = file_path.parent.name.lower()
+        if 'email' in parent:
+            return 'Email'
+        elif 'social' in parent:
+            return 'Social Media'
+        
+        return 'Other'
+
+
+class ApprovalCollector:
+    """Collects pending approvals"""
+    
+    def __init__(self, pending_folder: Path):
+        self.folder = pending_folder
+    
+    def collect(self) -> List[PendingApproval]:
+        """Collect all pending approvals"""
         approvals = []
         
-        # Check Pending_Approval folder
-        if self.pending_approval_path.exists():
-            for approval_file in self.pending_approval_path.glob('*.md'):
-                try:
-                    content = approval_file.read_text()
-                    
-                    approval_data = {
-                        'file': approval_file.name,
-                        'type': 'Unknown',
-                        'requested': None,
-                        'status': 'Pending',
-                        'description': approval_file.stem
-                    }
-                    
-                    # Parse frontmatter
-                    if '---' in content:
-                        parts = content.split('---')
-                        if len(parts) > 1:
-                            frontmatter = parts[1]
-                            for line in frontmatter.split('\n'):
-                                if ':' in line:
-                                    key, value = line.split(':', 1)
-                                    key = key.strip()
-                                    value = value.strip()
-                                    if key == 'type':
-                                        approval_data['type'] = value
-                                    elif key == 'created':
-                                        approval_data['requested'] = value
-                                    elif key == 'approval_id':
-                                        approval_data['description'] = value
-                    
-                    # Extract type from content
-                    if 'email' in content.lower():
-                        approval_data['type'] = 'Email'
-                    elif 'linkedin' in content.lower():
-                        approval_data['type'] = 'LinkedIn Post'
-                    elif 'facebook' in content.lower():
-                        approval_data['type'] = 'Facebook Post'
-                    elif 'payment' in content.lower():
-                        approval_data['type'] = 'Payment'
-                    elif 'invoice' in content.lower():
-                        approval_data['type'] = 'Invoice'
-                    
-                    approvals.append(approval_data)
-                    
-                except Exception as e:
-                    logger.warning(f'Error reading approval file {approval_file.name}: {e}')
-                    continue
+        if not self.folder.exists():
+            return approvals
         
-        # Check Needs_Approval folder
-        if self.needs_approval_path.exists():
-            for approval_file in self.needs_approval_path.glob('*.md'):
-                try:
-                    content = approval_file.read_text()
-                    
-                    # Only include if still pending
-                    if 'status: pending' in content.lower() or 'approved: false' in content.lower():
-                        approval_data = {
-                            'file': approval_file.name,
-                            'type': 'Unknown',
-                            'requested': None,
-                            'status': 'Pending',
-                            'description': approval_file.stem
-                        }
-                        
-                        if '---' in content:
-                            parts = content.split('---')
-                            if len(parts) > 1:
-                                frontmatter = parts[1]
-                                for line in frontmatter.split('\n'):
-                                    if ':' in line:
-                                        key, value = line.split(':', 1)
-                                        key = key.strip()
-                                        value = value.strip()
-                                        if key == 'type':
-                                            approval_data['type'] = value
-                                        elif key == 'created':
-                                            approval_data['requested'] = value
-                        
-                        approvals.append(approval_data)
-                        
-                except Exception as e:
-                    logger.warning(f'Error reading approval file {approval_file.name}: {e}')
-                    continue
+        now = datetime.now()
         
+        for category_folder in self.folder.iterdir():
+            if not category_folder.is_dir():
+                continue
+            
+            category = category_folder.name
+            
+            for file_path in category_folder.iterdir():
+                if not file_path.is_file():
+                    continue
+                
+                # Skip approval marker files
+                if file_path.suffix == '.json':
+                    continue
+                
+                try:
+                    mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                    days_pending = (now - mtime).days
+                    
+                    approvals.append(PendingApproval(
+                        filename=file_path.name,
+                        category=category,
+                        created_date=mtime.strftime(BRIEFING_DATE_FORMAT),
+                        days_pending=days_pending
+                    ))
+                except Exception as e:
+                    print(f"Error reading {file_path}: {e}")
+        
+        # Sort by days pending (oldest first)
+        approvals.sort(key=lambda x: x.days_pending, reverse=True)
         return approvals
 
-    def get_financial_summary(self, start_date: str, end_date: str) -> Dict[str, Any]:
-        """
-        Get financial summary for period.
+
+class IssueCollector:
+    """Collects issues from logs and rejected items"""
+    
+    def __init__(self, logs_folder: Path, rejected_folder: Path):
+        self.logs_folder = logs_folder
+        self.rejected_folder = rejected_folder
+    
+    def collect(self, start_date: datetime, end_date: datetime) -> List[Issue]:
+        """Collect issues for the period"""
+        issues = []
+        error_counts = defaultdict(lambda: {"count": 0, "last": None})
         
-        Args:
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
-            
-        Returns:
-            Dictionary with income/expense data
-        """
-        summary = {
-            'income': {'total': 0.0, 'transactions': 0},
-            'expense': {'total': 0.0, 'transactions': 0},
-            'net': 0.0,
-            'margin': 0.0
-        }
+        # Collect from logs
+        if self.logs_folder.exists():
+            for log_file in self.logs_folder.iterdir():
+                if not log_file.is_file() or log_file.suffix not in ['.log', '.md']:
+                    continue
+                
+                try:
+                    content = log_file.read_text()
+                    
+                    # Find error patterns
+                    error_patterns = [
+                        (r'ERROR[:\s]+(.+)', 'Error'),
+                        (r'FAILED[:\s]+(.+)', 'Failed'),
+                        (r'EXCEPTION[:\s]+(.+)', 'Exception'),
+                        (r'CRITICAL[:\s]+(.+)', 'Critical'),
+                    ]
+                    
+                    for pattern, issue_type in error_patterns:
+                        matches = re.findall(pattern, content, re.IGNORECASE)
+                        for match in matches[:10]:  # Limit per file
+                            key = f"{issue_type}: {match[:50]}"
+                            error_counts[key]["count"] += 1
+                            error_counts[key]["last"] = datetime.now().strftime(BRIEFING_DATE_FORMAT)
+                            
+                except Exception as e:
+                    pass
         
-        # Try to use Accounting Manager
-        try:
-            from scripts.accounting_manager import AccountingManager
+        # Collect from rejected folder
+        if self.rejected_folder.exists():
+            for file_path in self.rejected_folder.iterdir():
+                if file_path.is_file():
+                    try:
+                        mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                        if start_date <= mtime <= end_date:
+                            key = f"Rejected: {file_path.name}"
+                            error_counts[key]["count"] += 1
+                            error_counts[key]["last"] = mtime.strftime(BRIEFING_DATE_FORMAT)
+                    except Exception:
+                        pass
+        
+        # Convert to Issue list
+        for desc, data in error_counts.items():
+            if data["count"] > 0:
+                issues.append(Issue(
+                    source="System",
+                    description=desc,
+                    count=data["count"],
+                    last_occurrence=data["last"] or "Unknown"
+                ))
+        
+        # Sort by count (most frequent first)
+        issues.sort(key=lambda x: x.count, reverse=True)
+        return issues[:20]  # Limit to top 20
+
+
+# =============================================================================
+# Briefing Generator
+# =============================================================================
+
+class BriefingGenerator:
+    """Generates the weekly CEO briefing"""
+    
+    def __init__(self):
+        self.revenue_collector = RevenueCollector(ACCOUNTING_FOLDER)
+        self.task_collector = TaskCollector(DONE_FOLDER)
+        self.approval_collector = ApprovalCollector(PENDING_APPROVAL_FOLDER)
+        self.issue_collector = IssueCollector(LOGS_FOLDER, REJECTED_FOLDER)
+    
+    def generate(self, week_start: Optional[datetime] = None) -> WeeklyBriefing:
+        """Generate briefing for the given week"""
+        if week_start is None:
+            # Default: last week (Monday to Sunday)
+            today = datetime.now()
+            # Go back to last Monday
+            days_since_monday = today.weekday()
+            week_start = today - timedelta(days=days_since_monday, weeks=1)
+        
+        week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+        
+        # Collect data
+        revenue = self.revenue_collector.collect(week_start, week_end)
+        completed_tasks = self.task_collector.collect(week_start, week_end)
+        pending_approvals = self.approval_collector.collect()
+        issues = self.issue_collector.collect(week_start, week_end)
+        
+        # Generate highlights and recommendations
+        highlights = self._generate_highlights(revenue, completed_tasks)
+        recommendations = self._generate_recommendations(revenue, completed_tasks, 
+                                                         pending_approvals, issues)
+        
+        return WeeklyBriefing(
+            period_start=week_start.strftime(BRIEFING_DATE_FORMAT),
+            period_end=week_end.strftime(BRIEFING_DATE_FORMAT),
+            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            revenue=revenue,
+            completed_tasks=completed_tasks,
+            pending_approvals=pending_approvals,
+            issues=issues,
+            highlights=highlights,
+            recommendations=recommendations
+        )
+    
+    def _generate_highlights(self, revenue: RevenueData, 
+                             tasks: TaskSummary) -> List[str]:
+        """Generate key highlights"""
+        highlights = []
+        
+        # Revenue highlights
+        if revenue.total_revenue > 0:
+            highlights.append(f"Revenue: {revenue.currency}{revenue.total_revenue:,.2f} collected")
+        
+        if revenue.pending_invoices > 0:
+            highlights.append(f"{revenue.currency}{revenue.pending_invoices:,.2f} in pending invoices")
+        
+        # Task highlights
+        if tasks.total_completed > 0:
+            highlights.append(f"{tasks.total_completed} tasks completed this week")
             
-            accounting = AccountingManager(vault_path=str(self.vault_path))
-            
-            # Get transactions
-            transactions = accounting.get_transactions(
-                start_date=start_date,
-                end_date=end_date
+            # Top category
+            if tasks.by_category:
+                top_cat = max(tasks.by_category.items(), key=lambda x: x[1])
+                highlights.append(f"Most active: {top_cat[0]} ({top_cat[1]} tasks)")
+        
+        # Busiest day
+        if tasks.by_day:
+            busiest_day = max(tasks.by_day.items(), key=lambda x: x[1])
+            highlights.append(f"Busiest day: {busiest_day[0]} ({busiest_day[1]} tasks)")
+        
+        return highlights
+    
+    def _generate_recommendations(self, revenue: RevenueData,
+                                   tasks: TaskSummary,
+                                   pending_approvals: List[PendingApproval],
+                                   issues: List[Issue]) -> List[str]:
+        """Generate recommendations"""
+        recommendations = []
+        
+        # Pending approvals
+        if pending_approvals:
+            old_approvals = [a for a in pending_approvals if a.days_pending > 2]
+            if old_approvals:
+                recommendations.append(
+                    f"Review {len(old_approvals)} pending approval(s) over 2 days old"
+                )
+        
+        # Revenue follow-up
+        if revenue.pending_invoices > 0:
+            recommendations.append(
+                f"Follow up on {revenue.currency}{revenue.pending_invoices:,.2f} in unpaid invoices"
             )
-            
-            for txn in transactions:
-                if txn['type'] == 'income':
-                    summary['income']['total'] += txn['amount']
-                    summary['income']['transactions'] += 1
-                elif txn['type'] == 'expense':
-                    summary['expense']['total'] += txn['amount']
-                    summary['expense']['transactions'] += 1
-            
-            summary['net'] = summary['income']['total'] - summary['expense']['total']
-            if summary['income']['total'] > 0:
-                summary['margin'] = (summary['net'] / summary['income']['total']) * 100
-            
-            return summary
-            
-        except ImportError:
-            logger.warning('Accounting Manager not available, using fallback')
-        except Exception as e:
-            logger.warning(f'Error getting financial summary: {e}')
         
-        # Fallback: Parse Current_Month.md
-        current_month_file = self.accounting_path / 'Current_Month.md'
-        if current_month_file.exists():
-            try:
-                content = current_month_file.read_text()
-                
-                # Parse frontmatter totals
-                if '---' in content:
-                    parts = content.split('---')
-                    if len(parts) > 1:
-                        frontmatter = parts[1]
-                        for line in frontmatter.split('\n'):
-                            if ':' in line:
-                                key, value = line.split(':', 1)
-                                key = key.strip()
-                                value = value.strip()
-                                if key == 'total_income':
-                                    summary['income']['total'] = float(value)
-                                elif key == 'total_expense':
-                                    summary['expense']['total'] = float(value)
-                                elif key == 'balance':
-                                    summary['net'] = float(value)
-                
-                summary['margin'] = (summary['net'] / summary['income']['total'] * 100) if summary['income']['total'] > 0 else 0
-                
-            except Exception as e:
-                logger.warning(f'Error parsing current month file: {e}')
+        # Issues
+        if issues:
+            critical_issues = [i for i in issues if i.count > 5]
+            if critical_issues:
+                recommendations.append(
+                    f"Investigate recurring issues ({len(critical_issues)} types with 5+ occurrences)"
+                )
         
-        return summary
+        # Productivity
+        if tasks.total_completed > 0:
+            if tasks.total_completed < 10:
+                recommendations.append(
+                    "Consider reviewing workflow efficiency (low task completion)"
+                )
+        
+        return recommendations
 
-    def get_system_health(self) -> Dict[str, Any]:
-        """
-        Get system health status.
-        
-        Returns:
-            Dictionary with component health status
-        """
-        health = {
-            'components': [],
-            'overall': 'Healthy',
-            'issues': []
-        }
-        
-        # Check Gmail Watcher
-        gmail_creds = Path('gmail_credentials.json')
-        if gmail_creds.exists():
-            health['components'].append({
-                'name': 'Gmail Watcher',
-                'status': '✅ Healthy',
-                'details': 'Credentials configured'
-            })
-        else:
-            health['components'].append({
-                'name': 'Gmail Watcher',
-                'status': '⚠️ Not Configured',
-                'details': 'No credentials found'
-            })
-            health['issues'].append('Gmail credentials not configured')
-        
-        # Check LinkedIn
-        linkedin_watcher = Path('linkedin_watcher.py')
-        if linkedin_watcher.exists():
-            health['components'].append({
-                'name': 'LinkedIn Watcher',
-                'status': '✅ Healthy',
-                'details': 'Module available'
-            })
-        else:
-            health['components'].append({
-                'name': 'LinkedIn Watcher',
-                'status': '❌ Missing',
-                'details': 'Module not found'
-            })
-        
-        # Check Facebook
-        facebook_watcher = Path('facebook_watcher.py')
-        if facebook_watcher.exists():
-            health['components'].append({
-                'name': 'Facebook Watcher',
-                'status': '✅ Healthy',
-                'details': 'Module available'
-            })
-        else:
-            health['components'].append({
-                'name': 'Facebook Watcher',
-                'status': '❌ Missing',
-                'details': 'Module not found'
-            })
-        
-        # Check Twitter
-        twitter_watcher = Path('twitter_watcher.py')
-        if twitter_watcher.exists():
-            health['components'].append({
-                'name': 'Twitter Watcher',
-                'status': '✅ Healthy',
-                'details': 'Module available'
-            })
-        else:
-            health['components'].append({
-                'name': 'Twitter Watcher',
-                'status': '❌ Missing',
-                'details': 'Module not found'
-            })
-        
-        # Check Accounting
-        accounting_manager = Path('scripts/accounting_manager.py')
-        if accounting_manager.exists():
-            health['components'].append({
-                'name': 'Accounting Manager',
-                'status': '✅ Healthy',
-                'details': 'Module available'
-            })
-        else:
-            health['components'].append({
-                'name': 'Accounting Manager',
-                'status': '❌ Missing',
-                'details': 'Module not found'
-            })
-        
-        # Check Orchestrator
-        orchestrator = Path('orchestrator_gold.py')
-        if orchestrator.exists():
-            health['components'].append({
-                'name': 'Orchestrator',
-                'status': '✅ Healthy',
-                'details': 'Gold tier running'
-            })
-        else:
-            health['components'].append({
-                'name': 'Orchestrator',
-                'status': '❌ Missing',
-                'details': 'Module not found'
-            })
-        
-        # Check vault structure
-        required_folders = ['Inbox', 'Needs_Action', 'Done', 'Pending_Approval']
-        missing_folders = []
-        for folder in required_folders:
-            if not (self.vault_path / folder).exists():
-                missing_folders.append(folder)
-        
-        if missing_folders:
-            health['components'].append({
-                'name': 'Vault Structure',
-                'status': '⚠️ Incomplete',
-                'details': f'Missing: {", ".join(missing_folders)}'
-            })
-            health['issues'].append(f'Missing vault folders: {", ".join(missing_folders)}')
-        else:
-            health['components'].append({
-                'name': 'Vault Structure',
-                'status': '✅ Healthy',
-                'details': 'All folders present'
-            })
-        
-        # Check logs
-        if self.logs_path.exists() and any(self.logs_path.glob('*.log')):
-            health['components'].append({
-                'name': 'Logging',
-                'status': '✅ Healthy',
-                'details': 'Logs active'
-            })
-        else:
-            health['components'].append({
-                'name': 'Logging',
-                'status': '⚠️ Not Active',
-                'details': 'No log files found'
-            })
-        
-        # Determine overall health
-        if health['issues']:
-            health['overall'] = '⚠️ Issues Detected'
-        else:
-            healthy_count = sum(1 for c in health['components'] if '✅' in c['status'])
-            if healthy_count == len(health['components']):
-                health['overall'] = '🟢 All Systems Operational'
-            else:
-                health['overall'] = '🟡 Some Systems Degraded'
-        
-        return health
 
-    def generate_weekly_briefing(
-        self,
-        period_start: str = None,
-        period_end: str = None
-    ) -> Dict[str, Any]:
-        """
-        Generate weekly CEO briefing.
-        
-        Args:
-            period_start: Start date (YYYY-MM-DD), defaults to last Monday
-            period_end: End date (YYYY-MM-DD), defaults to next Sunday
-            
-        Returns:
-            Dictionary with briefing data and file path
-        """
-        # Get date range
-        if not period_start or not period_end:
-            period_start, period_end = self.get_week_date_range()
-        
-        logger.info(f'Generating weekly briefing: {period_start} to {period_end}')
-        
-        # Gather all data
-        tasks_completed = self.get_tasks_completed(period_start, period_end)
-        emails_sent = self.get_emails_sent(period_start, period_end)
-        social_activity = self.get_social_media_activity(period_start, period_end)
-        pending_approvals = self.get_pending_approvals()
-        financial_summary = self.get_financial_summary(period_start, period_end)
-        system_health = self.get_system_health()
-        
-        # Generate briefing content
-        briefing_date = datetime.now()
-        briefing_file = self.reports_path / f"CEO_Weekly_{period_start}_to_{period_end}.md"
-        
-        content = f"""---
-type: ceo_weekly_briefing
-period_start: {period_start}
-period_end: {period_end}
-generated: {briefing_date.isoformat()}
----
+# =============================================================================
+# Report Writer
+# =============================================================================
 
-# CEO Weekly Briefing
+class BriefingWriter:
+    """Writes briefing to markdown file"""
+    
+    def __init__(self, output_folder: Path):
+        self.folder = output_folder
+        self.folder.mkdir(parents=True, exist_ok=True)
+    
+    def write(self, briefing: WeeklyBriefing) -> Path:
+        """Write briefing to file"""
+        filename = f"{briefing.period_start}_CEO_Briefing.md"
+        file_path = self.folder / filename
+        
+        content = self._format_briefing(briefing)
+        
+        with open(file_path, 'w') as f:
+            f.write(content)
+        
+        return file_path
+    
+    def _format_briefing(self, briefing: WeeklyBriefing) -> str:
+        """Format briefing as markdown"""
+        content = f"""# CEO Weekly Briefing
 
-**Period:** {period_start} to {period_end}
-**Generated:** {briefing_date.strftime('%A, %B %d, %Y at %I:%M %p')}
+**Period:** {briefing.period_start} to {briefing.period_end}  
+**Generated:** {briefing.generated_at}
 
 ---
 
 ## Executive Summary
 
-This week's performance overview with key highlights and action items.
+"""
+        
+        # Highlights
+        if briefing.highlights:
+            content += "### Key Highlights\n\n"
+            for highlight in briefing.highlights:
+                content += f"- ✅ {highlight}\n"
+            content += "\n"
+        
+        # Revenue Section
+        content += f"""---
 
-**Key Metrics:**
-- Tasks Completed: {len(tasks_completed)}
-- Emails Sent: {len(emails_sent)}
-- Social Posts: {sum(p['posts'] for p in social_activity.values())}
-- Revenue: ${financial_summary['income']['total']:,.2f}
-- Expenses: ${financial_summary['expense']['total']:,.2f}
-- Net Profit: ${financial_summary['net']:,.2f}
+## Revenue Summary
 
----
-
-## 📊 Tasks Completed
+| Metric | Amount |
+|--------|--------|
+| Total Revenue | {briefing.revenue.currency}{briefing.revenue.total_revenue:,.2f} |
+| Paid Invoices | {briefing.revenue.currency}{briefing.revenue.paid_invoices:,.2f} |
+| Pending Invoices | {briefing.revenue.currency}{briefing.revenue.pending_invoices:,.2f} |
+| Invoice Count | {briefing.revenue.invoice_count} |
+| Payments Received | {briefing.revenue.payment_count} |
 
 """
         
-        if tasks_completed:
-            content += "| Task | Date | Status | Notes |\n"
-            content += "|------|------|--------|-------|\n"
-            for task in tasks_completed[:10]:  # Top 10
-                content += f"| {task['description'][:50]} | {task['completed_date']} | ✅ Done | - |\n"
+        # Completed Tasks Section
+        content += """---
+
+## Completed Tasks
+
+"""
+        content += f"**Total Completed:** {briefing.completed_tasks.total_completed}\n\n"
+        
+        if briefing.completed_tasks.by_category:
+            content += "### By Category\n\n"
+            content += "| Category | Count |\n"
+            content += "|----------|-------|\n"
+            for cat, count in sorted(briefing.completed_tasks.by_category.items(), 
+                                     key=lambda x: x[1], reverse=True):
+                content += f"| {cat} | {count} |\n"
+            content += "\n"
+        
+        if briefing.completed_tasks.by_day:
+            content += "### By Day\n\n"
+            content += "| Day | Tasks |\n"
+            content += "|-----|-------|\n"
+            day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            for day in day_order:
+                if day in briefing.completed_tasks.by_day:
+                    content += f"| {day} | {briefing.completed_tasks.by_day[day]} |\n"
+            content += "\n"
+        
+        # Pending Approvals Section
+        content += """---
+
+## Pending Approvals
+
+"""
+        if briefing.pending_approvals:
+            content += f"**Total Pending:** {len(briefing.pending_approvals)}\n\n"
+            content += "| File | Category | Created | Days Pending |\n"
+            content += "|------|----------|---------|--------------|\n"
+            for approval in briefing.pending_approvals[:15]:  # Limit display
+                days_emoji = "⚠️" if approval.days_pending > 2 else ""
+                content += f"| {approval.filename} | {approval.category} | {approval.created_date} | {approval.days_pending} {days_emoji} |\n"
             
-            if len(tasks_completed) > 10:
-                content += f"\n**Total:** {len(tasks_completed)} tasks completed this week\n"
-            else:
-                content += f"\n**Total:** {len(tasks_completed)} tasks completed\n"
+            if len(briefing.pending_approvals) > 15:
+                content += f"\n*...and {len(briefing.pending_approvals) - 15} more*\n"
         else:
-            content += "*No tasks completed this week.*\n"
+            content += "*No pending approvals*\n"
+        content += "\n"
         
-        content += f"""
----
+        # Issues Section
+        content += """---
 
-## 📧 Emails Sent
+## Issues & Errors
 
 """
-        
-        if emails_sent:
-            content += "| Date | Recipient | Subject | Status |\n"
-            content += "|------|-----------|---------|--------|\n"
-            for email in emails_sent[:10]:  # Top 10
-                content += f"| {email.get('date', 'N/A')} | {email.get('recipient', 'N/A')[:30]} | {email.get('subject', 'N/A')[:40]} | ✅ Sent |\n"
+        if briefing.issues:
+            content += "| Issue | Count | Last Occurrence |\n"
+            content += "|-------|-------|------------------|\n"
+            for issue in briefing.issues[:10]:  # Limit display
+                content += f"| {issue.description[:50]} | {issue.count} | {issue.last_occurrence} |\n"
             
-            content += f"\n**Total:** {len(emails_sent)} emails sent\n"
+            if len(briefing.issues) > 10:
+                content += f"\n*...and {len(briefing.issues) - 10} more*\n"
         else:
-            content += "*No emails sent this week.*\n"
+            content += "*No issues detected*\n"
+        content += "\n"
         
-        content += f"""
----
+        # Recommendations Section
+        content += """---
 
-## 📱 Social Media Activity
-
-### LinkedIn
-- **Posts Published:** {social_activity['linkedin']['posts']}
-- **Impressions:** {social_activity['linkedin'].get('impressions', 'N/A')}
-
-### Facebook
-- **Posts Published:** {social_activity['facebook']['posts']}
-- **Reach:** {social_activity['facebook'].get('reach', 'N/A')}
-
-### Instagram
-- **Posts Published:** {social_activity['instagram']['posts']}
-
-### Twitter
-- **Tweets:** {social_activity['twitter']['tweets']}
-- **Impressions:** {social_activity['twitter'].get('impressions', 'N/A')}
-
----
-
-## ⏳ Pending Approvals
+## Recommendations
 
 """
-        
-        if pending_approvals:
-            content += "| Item | Type | Requested | Status | Action |\n"
-            content += "|------|------|-----------|--------|--------|\n"
-            for approval in pending_approvals[:10]:
-                content += f"| {approval['description'][:40]} | {approval['type']} | {approval.get('requested', 'N/A')} | ⏳ Pending | Review |\n"
-            
-            content += f"\n**Total Pending:** {len(pending_approvals)} items requiring attention\n"
+        if briefing.recommendations:
+            for i, rec in enumerate(briefing.recommendations, 1):
+                content += f"{i}. {rec}\n"
         else:
-            content += "*No pending approvals. All caught up!* ✅\n"
+            content += "*No specific recommendations this week*\n"
+        content += "\n"
         
-        content += f"""
----
+        # Footer
+        content += f"""---
 
-## 💰 Financial Summary
-
-### Income
-- **This Week:** ${financial_summary['income']['total']:,.2f}
-- **Transactions:** {financial_summary['income']['transactions']}
-
-### Expenses
-- **This Week:** ${financial_summary['expense']['total']:,.2f}
-- **Transactions:** {financial_summary['expense']['transactions']}
-
-### Net Profit
-- **This Week:** ${financial_summary['net']:,.2f}
-- **Profit Margin:** {financial_summary['margin']:.1f}%
-
----
-
-## 🏥 System Health
-
-| Component | Status | Details |
-|-----------|--------|---------|
+*Report generated automatically by AI Employee System*  
+*Next briefing: {(datetime.strptime(briefing.period_end, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")}*
 """
         
-        for component in system_health['components']:
-            content += f"| {component['name']} | {component['status']} | {component['details']} |\n"
-        
-        content += f"\n**Overall Health:** {system_health['overall']}\n"
-        
-        if system_health['issues']:
-            content += "\n### Issues\n"
-            for issue in system_health['issues']:
-                content += f"- ⚠️ {issue}\n"
-        
-        content += f"""
----
+        return content
 
-## 🎯 Key Highlights
 
-"""
-        
-        # Auto-generate highlights
-        highlights = []
-        
-        if len(tasks_completed) > 0:
-            highlights.append(f"✅ Completed {len(tasks_completed)} tasks this week")
-        
-        if financial_summary['net'] > 0:
-            highlights.append(f"✅ Positive net profit of ${financial_summary['net']:,.2f}")
-        
-        if len(pending_approvals) == 0:
-            highlights.append("✅ Zero pending approvals - all caught up!")
-        
-        if system_health['overall'] == '🟢 All Systems Operational':
-            highlights.append("✅ All systems running at 100%")
-        
-        if social_activity['linkedin']['posts'] > 0:
-            highlights.append(f"✅ Published {social_activity['linkedin']['posts']} LinkedIn posts")
-        
-        if highlights:
-            for highlight in highlights:
-                content += f"{highlight}\n"
-        else:
-            content += "*No specific highlights this week.*\n"
-        
-        content += f"""
----
-
-## ⚠️ Action Items
-
-"""
-        
-        if pending_approvals:
-            content += "1. **Review pending approvals** - "
-            content += f"{len(pending_approvals)} items awaiting attention\n"
-        
-        if system_health['issues']:
-            content += "2. **Address system issues** - Review health status above\n"
-        
-        if len(tasks_completed) == 0:
-            content += "3. **Increase productivity** - Set goals for next week\n"
-        
-        if not pending_approvals and not system_health['issues'] and len(tasks_completed) > 0:
-            content += "*No critical action items. Great job!*\n"
-        
-        content += f"""
----
-
-## 📈 Next Week Focus
-
-- [ ] Review and approve pending items
-- [ ] Continue task completion momentum
-- [ ] Monitor financial performance
-- [ ] Maintain system health
-
----
-
-_Briefing automatically generated by AI Employee System_
-_Next briefing: Monday, {(briefing_date + timedelta(days=7)).strftime('%B %d, %Y')} at 7:00 AM_
-"""
-        
-        # Write briefing file
-        briefing_file.write_text(content)
-        
-        logger.info(f'Weekly briefing generated: {briefing_file}')
-        
-        return {
-            'status': 'success',
-            'briefing_file': str(briefing_file),
-            'period': {
-                'start': period_start,
-                'end': period_end
-            },
-            'summary': {
-                'tasks_completed': len(tasks_completed),
-                'emails_sent': len(emails_sent),
-                'social_posts': sum(p['posts'] for p in social_activity.values()),
-                'pending_approvals': len(pending_approvals),
-                'revenue': financial_summary['income']['total'],
-                'expenses': financial_summary['expense']['total'],
-                'net_profit': financial_summary['net']
-            },
-            'system_health': system_health['overall']
-        }
-
-    def generate_daily_briefing(self) -> Dict[str, Any]:
-        """
-        Generate daily executive summary.
-        
-        Returns:
-            Dictionary with briefing data
-        """
-        today = datetime.now().strftime('%Y-%m-%d')
-        
-        logger.info(f'Generating daily briefing: {today}')
-        
-        # Get today's data
-        tasks = self.get_tasks_completed(today, today)
-        emails = self.get_emails_sent(today, today)
-        approvals = self.get_pending_approvals()
-        health = self.get_system_health()
-        
-        # Generate brief content
-        briefing_file = self.reports_path / f"CEO_Daily_{today}.md"
-        
-        content = f"""---
-type: ceo_daily_briefing
-date: {today}
-generated: {datetime.now().isoformat()}
----
-
-# CEO Daily Briefing
-
-**Date:** {datetime.now().strftime('%A, %B %d, %Y')}
-
----
-
-## Today's Summary
-
-- **Tasks Completed:** {len(tasks)}
-- **Emails Sent:** {len(emails)}
-- **Pending Approvals:** {len(approvals)}
-
----
-
-## System Health: {health['overall']}
-
-"""
-        
-        briefing_file.write_text(content)
-        
-        return {
-            'status': 'success',
-            'briefing_file': str(briefing_file),
-            'date': today
-        }
-
+# =============================================================================
+# Main Entry Point
+# =============================================================================
 
 def main():
-    """CLI entry point."""
-    parser = argparse.ArgumentParser(description='CEO Briefing Generator')
-    parser.add_argument('command', choices=['auto', 'weekly', 'daily', 'test'],
-                       help='Command to execute')
-    parser.add_argument('--start', help='Period start date (YYYY-MM-DD)')
-    parser.add_argument('--end', help='Period end date (YYYY-MM-DD)')
-    parser.add_argument('--vault', default='AI_Employee_Vault',
-                       help='Path to vault directory')
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Generate CEO Weekly Briefing")
+    parser.add_argument(
+        "--week-start",
+        type=str,
+        help="Start date of week (YYYY-MM-DD). Default: last Monday"
+    )
+    parser.add_argument(
+        "--output", "-o",
+        type=str,
+        help="Output folder. Default: AI_Employee_Vault/Briefings"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show briefing without saving"
+    )
     
     args = parser.parse_args()
     
-    # Initialize briefing generator
-    briefing = CEOBriefing(vault_path=args.vault)
+    # Parse week start if provided
+    week_start = None
+    if args.week_start:
+        try:
+            week_start = datetime.strptime(args.week_start, BRIEFING_DATE_FORMAT)
+        except ValueError:
+            print(f"Invalid date format. Use YYYY-MM-DD")
+            sys.exit(1)
     
-    try:
-        if args.command == 'auto':
-            # Auto mode: generate weekly briefing for last week
-            print("\n=== CEO Weekly Briefing (Auto Mode) ===\n")
-            result = briefing.generate_weekly_briefing(
-                period_start=args.start,
-                period_end=args.end
-            )
-            
-            print(f"✅ Briefing generated: {result['briefing_file']}")
-            print(f"\n📊 Summary:")
-            print(f"   Tasks Completed: {result['summary']['tasks_completed']}")
-            print(f"   Emails Sent: {result['summary']['emails_sent']}")
-            print(f"   Revenue: ${result['summary']['revenue']:,.2f}")
-            print(f"   Net Profit: ${result['summary']['net_profit']:,.2f}")
-            print(f"   System Health: {result['system_health']}")
-            print()
-            
-        elif args.command == 'weekly':
-            # Manual weekly briefing
-            print("\n=== CEO Weekly Briefing ===\n")
-            result = briefing.generate_weekly_briefing(
-                period_start=args.start,
-                period_end=args.end
-            )
-            
-            print(f"✅ Briefing generated: {result['briefing_file']}")
-            print()
-            
-        elif args.command == 'daily':
-            # Daily briefing
-            print("\n=== CEO Daily Briefing ===\n")
-            result = briefing.generate_daily_briefing()
-            
-            print(f"✅ Daily briefing generated: {result['briefing_file']}")
-            print()
-            
-        elif args.command == 'test':
-            # Test mode
-            print("\n=== CEO Briefing Test ===\n")
-            
-            # Test weekly briefing
-            result = briefing.generate_weekly_briefing()
-            
-            print("✅ All tests passed!")
-            print(f"Briefing file: {result['briefing_file']}")
-            print()
-            
-        else:
-            parser.print_help()
-            
-    except Exception as e:
-        logger.error(f'Error generating briefing: {e}', exc_info=True)
-        print(f"\n❌ Error: {e}\n")
-        sys.exit(1)
+    # Set output folder
+    output_folder = Path(args.output) if args.output else BRIEFINGS_FOLDER
+    
+    # Generate briefing
+    print("Generating CEO Weekly Briefing...")
+    generator = BriefingGenerator()
+    briefing = generator.generate(week_start)
+    
+    # Output
+    if args.dry_run:
+        writer = BriefingWriter(output_folder)
+        print(writer._format_briefing(briefing))
+    else:
+        writer = BriefingWriter(output_folder)
+        file_path = writer.write(briefing)
+        print(f"Briefing generated: {file_path}")
+        
+        # Print summary
+        print(f"\nPeriod: {briefing.period_start} to {briefing.period_end}")
+        print(f"Revenue: ${briefing.revenue.total_revenue:,.2f}")
+        print(f"Tasks Completed: {briefing.completed_tasks.total_completed}")
+        print(f"Pending Approvals: {len(briefing.pending_approvals)}")
+        print(f"Issues: {len(briefing.issues)}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

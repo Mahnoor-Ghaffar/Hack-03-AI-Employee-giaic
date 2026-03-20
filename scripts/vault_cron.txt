@@ -1,0 +1,39 @@
+# =============================================================================
+# Vault Git Sync - Cron Job Configuration
+# =============================================================================
+# Cloud VM: Automatically pulls vault changes every 2 minutes
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Environment Setup
+# -----------------------------------------------------------------------------
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin
+MAILTO=""
+
+# -----------------------------------------------------------------------------
+# Cron Jobs
+# -----------------------------------------------------------------------------
+
+# Vault Git Sync: Pull latest changes every 2 minutes
+# Runs at minute 0, 2, 4, 6, 8, ... 58 of every hour
+*/2 * * * * cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python git_sync.py pull >> logs/git_sync.log 2>&1
+
+# Optional: Cleanup old logs monthly (keep last 30 days)
+0 3 1 * * find /path/to/Hack-03-AI-Employee-giaic/logs -name "git_sync.log" -mtime +30 -exec truncate -s 0 {} \;
+
+# -----------------------------------------------------------------------------
+# VERIFICATION COMMANDS
+# -----------------------------------------------------------------------------
+# View installed cron jobs:
+#   crontab -l
+#
+# View cron logs (Ubuntu/Debian):
+#   grep CRON /var/log/syslog | grep git_sync
+#
+# Watch sync logs:
+#   tail -f logs/git_sync.log
+#
+# Test sync manually:
+#   cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python git_sync.py pull
+# -----------------------------------------------------------------------------

@@ -1,0 +1,66 @@
+# =============================================================================
+# System Watchdog - Cron Job Configuration
+# =============================================================================
+# Alternative to PM2: Run watchdog via cron
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# INSTALLATION
+# -----------------------------------------------------------------------------
+# Run this command to install the cron job:
+#
+#   crontab -l 2>/dev/null | cat - watchdog_cron.txt | crontab -
+#
+# Or manually run:
+#   crontab -e
+# Then paste the lines below
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Environment Setup
+# -----------------------------------------------------------------------------
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+MAILTO=""
+
+# -----------------------------------------------------------------------------
+# Cron Jobs
+# -----------------------------------------------------------------------------
+
+# System Watchdog: Check processes every minute
+# Runs the watchdog in background mode
+* * * * * cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/watchdog.py check >> logs/watchdog_cron.log 2>&1
+
+# Health Log: Force write health report every 5 minutes (at :00, :05, :10, etc.)
+*/5 * * * * cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/watchdog.py status >> logs/watchdog_cron.log 2>&1
+
+# Optional: Restart watchdog if it becomes unresponsive (every hour)
+0 * * * * pgrep -f "watchdog.py" > /dev/null || (cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/watchdog.py run &)
+
+# Optional: Clean old watchdog logs weekly (Sundays at 4 AM)
+0 4 * * 0 find /path/to/Hack-03-AI-Employee-giaic/logs -name "watchdog*.log" -mtime +7 -delete
+
+# Optional: Clean old health reports monthly (1st of each month at 5 AM)
+0 5 1 * * find /path/to/Hack-03-AI-Employee-giaic/AI_Employee_Vault/Logs -name "system_health.md" -mtime +30 -delete
+
+# -----------------------------------------------------------------------------
+# VERIFICATION COMMANDS
+# -----------------------------------------------------------------------------
+# Check if cron is running:
+#   systemctl status cron
+#
+# View installed cron jobs:
+#   crontab -l
+#
+# View cron logs (Ubuntu/Debian):
+#   grep CRON /var/log/syslog
+#
+# View watchdog logs:
+#   tail -f /path/to/Hack-03-AI-Employee-giaic/logs/watchdog_cron.log
+#
+# Test the watchdog manually:
+#   cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/watchdog.py check
+#
+# View current health report:
+#   cat /path/to/Hack-03-AI-Employee-giaic/AI_Employee_Vault/Logs/system_health.md
+# -----------------------------------------------------------------------------

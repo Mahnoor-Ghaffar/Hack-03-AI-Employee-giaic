@@ -1,0 +1,79 @@
+# =============================================================================
+# CEO Weekly Briefing - Cron Job Configuration
+# =============================================================================
+# Runs every Sunday at 8:00 AM to generate weekly briefing
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# INSTALLATION
+# -----------------------------------------------------------------------------
+# Run this command to install the cron job:
+#
+#   crontab -l 2>/dev/null | cat - ceo_briefing_cron.txt | crontab -
+#
+# Or manually run:
+#   crontab -e
+# Then paste the lines below
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Environment Setup
+# -----------------------------------------------------------------------------
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+MAILTO=""
+
+# -----------------------------------------------------------------------------
+# Cron Jobs
+# -----------------------------------------------------------------------------
+
+# CEO Weekly Briefing: Every Sunday at 8:00 AM
+# Generates briefing for the previous week (Monday to Sunday)
+0 8 * * 0 cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/ceo_briefing.py >> logs/ceo_briefing.log 2>&1
+
+# Optional: Send briefing via email (if email script available)
+# 30 8 * * 0 cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/send_briefing_email.py >> logs/ceo_briefing.log 2>&1
+
+# Optional: Clean old briefings quarterly (keep last 12 weeks)
+# 0 9 1 1,4,7,10 * find /path/to/Hack-03-AI-Employee-giaic/AI_Employee_Vault/Briefings -name "*CEO_Briefing.md" -mtime +90 -delete
+
+# -----------------------------------------------------------------------------
+# ALTERNATIVE SCHEDULES
+# -----------------------------------------------------------------------------
+
+# Every Sunday at 6:00 AM (earlier)
+# 0 6 * * 0 cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/ceo_briefing.py >> logs/ceo_briefing.log 2>&1
+
+# Every Sunday at 9:00 AM (later)
+# 0 9 * * 0 cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/ceo_briefing.py >> logs/ceo_briefing.log 2>&1
+
+# Every Monday at 7:00 AM (for previous week)
+# 0 7 * * 1 cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/ceo_briefing.py >> logs/ceo_briefing.log 2>&1
+
+# Twice monthly (1st and 15th at 8:00 AM)
+# 0 8 1,15 * * cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/ceo_briefing.py >> logs/ceo_briefing.log 2>&1
+
+# -----------------------------------------------------------------------------
+# VERIFICATION COMMANDS
+# -----------------------------------------------------------------------------
+# Check if cron is running:
+#   systemctl status cron
+#
+# View installed cron jobs:
+#   crontab -l
+#
+# View cron logs (Ubuntu/Debian):
+#   grep CRON /var/log/syslog | grep ceo_briefing
+#
+# View briefing logs:
+#   tail -f /path/to/Hack-03-AI-Employee-giaic/logs/ceo_briefing.log
+#
+# Test the briefing generator manually:
+#   cd /path/to/Hack-03-AI-Employee-giaic && ./venv/bin/python scripts/ceo_briefing.py
+#
+# Generate briefing for specific week:
+#   ./venv/bin/python scripts/ceo_briefing.py --week-start 2026-03-10
+#
+# View latest briefing:
+#   cat AI_Employee_Vault/Briefings/*CEO_Briefing.md | tail -100
+# -----------------------------------------------------------------------------

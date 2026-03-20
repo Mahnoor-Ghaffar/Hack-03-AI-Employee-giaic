@@ -1,0 +1,46 @@
+[Unit]
+Description=AI Employee System - 24/7 Operation
+Documentation=https://github.com/your-repo/ai-employee
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# User and group
+User=ai-employee
+Group=ai-employee
+
+# Working directory
+WorkingDirectory=/opt/ai-employee
+
+# Environment
+Environment="PATH=/opt/ai-employee/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="NODE_ENV=production"
+
+# Start AI Employee with PM2
+ExecStart=/usr/bin/pm2 start /opt/ai-employee/ecosystem.config.js
+ExecReload=/usr/bin/pm2 reload all
+ExecStop=/usr/bin/pm2 stop all
+
+# Timeout settings
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/ai-employee/logs /opt/ai-employee/AI_Employee_Vault /opt/ai-employee/temp
+
+# Resource limits
+LimitNOFILE=65535
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,25 @@
+[Unit]
+Description=AI Employee System Watchdog
+After=network.target pm2-root.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/ai-employee
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="VAULT_PATH=/opt/ai-employee/AI_Employee_Vault"
+Environment="HEALTH_LOG_INTERVAL=300"
+Environment="STATUS_CHECK_INTERVAL=60"
+ExecStart=/opt/ai-employee/venv/bin/python /opt/ai-employee/scripts/watchdog.py run
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/ai-employee/logs/watchdog_systemd.log
+StandardError=append:/opt/ai-employee/logs/watchdog_systemd_error.log
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/ai-employee/AI_Employee_Vault /opt/ai-employee/logs
+
+[Install]
+WantedBy=multi-user.target

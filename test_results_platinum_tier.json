@@ -1,0 +1,468 @@
+{
+  "timestamp": "2026-03-18T19:13:22.640032",
+  "test_mode": false,
+  "components": {
+    "Odoo MCP": [
+      {
+        "test": "Import module",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Connection test",
+        "status": "FAILED",
+        "message": "[WinError 10061] No connection could be made because the target machine actively refused it"
+      },
+      {
+        "test": "Method exists: create_invoice",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method exists: list_invoices",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method exists: record_payment",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method exists: get_partner",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method exists: test_connection",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "get_odoo_client function",
+        "status": "SKIPPED",
+        "message": "[WinError 10061] No connection could be made becau"
+      }
+    ],
+    "Twitter Skill": [
+      {
+        "test": "Skill directory exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: __init__.py",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: SKILL.md",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: twitter_skill.py",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: post_tweet",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: post_thread",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: get_history",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: get_stats",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "History file path defined",
+        "status": "PASSED",
+        "message": ""
+      }
+    ],
+    "Social Media": [
+      {
+        "test": "Skill directory exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: __init__.py",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: SKILL.md",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: social_skill.py",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: post_facebook",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: post_instagram",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: post_instagram_carousel",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: post_to_both",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: get_account_info",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Log file path defined (social.log)",
+        "status": "PASSED",
+        "message": ""
+      }
+    ],
+    "Personal Tasks": [
+      {
+        "test": "Skill directory exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: __init__.py",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: SKILL.md",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: personal_skill.py",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: create_task",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: get_task",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: update_task_status",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: update_task",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: delete_task",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: list_tasks",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: get_summary",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Personal/Archive paths defined",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Personal path exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Archive path exists",
+        "status": "PASSED",
+        "message": ""
+      }
+    ],
+    "Plan Workflow": [
+      {
+        "test": "Skill directory exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: __init__.py",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: SKILL.md",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "File exists: plan_workflow.py",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: create_plan",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: read_plan",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: update_plan",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: list_plans",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: execute_plan",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: execute_step",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method defined: validate_plan",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Supported action: odoo.create_invoice",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Supported action: twitter.post_tweet",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Supported action: social.post_facebook",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Supported action: social.post_instagram",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Supported action: personal.create_task",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Plans path exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Reports path exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Logs path exists",
+        "status": "PASSED",
+        "message": ""
+      }
+    ],
+    "Gold Integration": [
+      {
+        "test": "Import module",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Instantiate class",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method exists: create_invoice_from_plan",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method exists: list_invoices_from_period",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method exists: post_social_from_plan",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Method exists: sync_personal_tasks",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "log_gold_tier_action function",
+        "status": "PASSED",
+        "message": ""
+      }
+    ],
+    "Vault Structure": [
+      {
+        "test": "Directory exists: AI_Employee_Vault",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Directory exists: AI_Employee_Vault/Personal",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Directory exists: AI_Employee_Vault/Personal/Archive",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Directory exists: AI_Employee_Vault/Plans",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Directory exists: AI_Employee_Vault/Reports",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Directory exists: AI_Employee_Vault/Logs",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Log file exists: logs/ai_employee.log",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Log file exists: logs/social.log",
+        "status": "SKIPPED",
+        "message": "Will be created on first use"
+      },
+      {
+        "test": "Log file exists: logs/personal_tasks.log",
+        "status": "SKIPPED",
+        "message": "Will be created on first use"
+      },
+      {
+        "test": "Log file exists: logs/plan_workflow.log",
+        "status": "SKIPPED",
+        "message": "Will be created on first use"
+      }
+    ],
+    "MCP Config": [
+      {
+        "test": "mcp.json exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Skills section exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Skill registered: twitter-post",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Skill registered: social-meta",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Skill registered: personal-task-handler",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "Skill registered: odoo-mcp-server",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "MCP Servers section exists",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "MCP Server registered: odoo",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "MCP Server registered: odoo-mcp",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "MCP Server registered: facebook",
+        "status": "PASSED",
+        "message": ""
+      },
+      {
+        "test": "MCP Server registered: twitter",
+        "status": "PASSED",
+        "message": ""
+      }
+    ]
+  },
+  "summary": {
+    "total": 88,
+    "passed": 83,
+    "failed": 1,
+    "skipped": 4
+  }
+}

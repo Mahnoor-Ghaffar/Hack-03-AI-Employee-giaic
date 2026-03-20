@@ -145,10 +145,13 @@ class VaultGitSync:
             logger.error("Git not found. Please install Git.")
             return False
 
-    def pull_changes(self) -> bool:
+    def pull_changes(self, force: bool = False) -> bool:
         """
-        Pull latest changes from remote.
-        
+        Pull latest changes from remote with conflict avoidance.
+
+        Args:
+            force: If True, reset to remote state (discard local changes)
+
         Returns:
             True if successful
         """
@@ -156,21 +159,32 @@ class VaultGitSync:
             if not self.git_dir.exists():
                 logger.warning("Git repo not initialized, skipping pull")
                 return False
-            
+
             logger.info("Pulling changes from remote...")
-            
+
+            # Stash any local changes first (preserves them safely)
+            result = subprocess.run(
+                ['git', 'stash', 'push', '-m', 'Auto-stash before pull'],
+                cwd=self.vault_path,
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                logger.debug(f"Stashed local changes: {result.stdout.strip()}")
+
             # Fetch first
             result = subprocess.run(
                 ['git', 'fetch', 'origin'],
                 cwd=self.vault_path,
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=30
             )
-            
+
             if result.returncode != 0:
                 logger.error(f"Git fetch failed: {result.stderr}")
                 return False
-            
+
             # Check if we have a tracking branch
             result = subprocess.run(
                 ['git', 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
@@ -178,24 +192,26 @@ class VaultGitSync:
                 capture_output=True,
                 text=True
             )
-            
+
             if result.returncode == 0:
-                # Has tracking branch, pull
+                # Has tracking branch, pull with rebase
                 result = subprocess.run(
-                    ['git', 'pull', '--rebase'],
+                    ['git', 'pull', '--rebase', '--autostash'],
                     cwd=self.vault_path,
                     capture_output=True,
-                    text=True
+                    text=True,
+                    timeout=60
                 )
             else:
                 # No tracking branch, try to pull from origin/main
                 result = subprocess.run(
-                    ['git', 'pull', 'origin', 'main', '--allow-unrelated-histories'],
+                    ['git', 'pull', 'origin', 'main', '--allow-unrelated-histories', '--autostash'],
                     cwd=self.vault_path,
                     capture_output=True,
-                    text=True
+                    text=True,
+                    timeout=60
                 )
-            
+
             if result.returncode == 0:
                 if result.stdout.strip():
                     logger.info(f"Pull completed: {result.stdout.strip()}")
@@ -204,11 +220,42 @@ class VaultGitSync:
                 return True
             else:
                 logger.error(f"Pull failed: {result.stderr}")
+                # Try to abort rebase if it failed mid-way
+                subprocess.run(
+                    ['git', 'rebase', '--abort'],
+                    cwd=self.vault_path,
+                    capture_output=True,
+                    timeout=10
+                )
                 return False
-                
+
+        except subprocess.TimeoutExpired:
+            logger.error("Git pull timed out")
+            return False
         except Exception as e:
             logger.error(f"Error pulling changes: {e}")
             return False
+
+    def pull_only(self) -> bool:
+        """
+        Pull-only mode for Cloud VM (no push).
+        Safe pull with conflict avoidance and auto-stash.
+
+        Returns:
+            True if successful
+        """
+        logger.info("=== Cloud Vault Pull Mode ===")
+        
+        # Check Git is installed
+        if not self.check_git_installed():
+            return False
+
+        # Initialize repo if needed
+        if not self.initialize_repo():
+            return False
+
+        # Pull changes
+        return self.pull_changes()
 
     def push_changes(self) -> bool:
         """
@@ -359,80 +406,164 @@ class VaultGitSync:
 
 
 def main():
-    """Entry point for Git Sync"""
+    """Entry point for Git Sync with CLI commands"""
     import os
+    import sys
     import time
-    
+
+    # Parse command
+    command = sys.argv[1] if len(sys.argv) > 1 else "sync"
+
     print("=" * 60)
     print("PLATINUM TIER - VAULT GIT SYNC")
     print("=" * 60)
     print()
-    
+
     # Determine agent name from environment or default
     agent_name = os.getenv('PLATINUM_AGENT', 'local_agent')
     remote_url = os.getenv('VAULT_GIT_REMOTE', '')
-    
-    print(f"Agent: {agent_name}")
-    print(f"Remote: {remote_url or 'Not configured'}")
-    print()
-    
+
     sync = VaultGitSync(
         vault_path="AI_Employee_Vault",
         remote_url=remote_url if remote_url else None,
         agent_name=agent_name
     )
-    
-    # Run initial sync
-    print("Running initial sync...")
-    pull_success, push_success = sync.run_sync()
-    
-    print(f"Pull: {'✅ Success' if pull_success else '❌ Failed'}")
-    print(f"Push: {'✅ Success' if push_success else '❌ Failed'}")
-    print()
-    
-    # Show status
-    status = sync.get_status()
-    print(f"Repository Status: {status.get('status', 'Unknown')}")
-    if status.get('changes'):
-        print(f"Changes ({status.get('changes_count', 0)}):")
-        for change in status['changes'][:5]:
-            print(f"  {change}")
-    
-    print()
-    print("=" * 60)
-    print()
-    
-    # Continue syncing every 5 minutes
-    if remote_url:
-        print("Starting continuous sync (every 5 minutes)...")
-        print("Press Ctrl+C to stop")
+
+    if command == "pull":
+        # Pull-only mode (Cloud VM)
+        print(f"Mode: Pull Only (Cloud)")
+        print(f"Remote: {remote_url or 'Not configured'}")
         print()
-        
-        cycle_count = 0
-        
-        while True:
-            try:
-                cycle_count += 1
-                logger.info(f"=== Sync Cycle {cycle_count} ===")
-                
-                pull_success, push_success = sync.run_sync()
-                
-                if pull_success and push_success:
-                    logger.info(f"Cycle {cycle_count} completed successfully")
-                else:
-                    logger.warning(f"Cycle {cycle_count} had errors")
-                
-                time.sleep(300)  # 5 minutes
-                
-            except KeyboardInterrupt:
-                logger.info("Git Sync shutting down (user interrupt)")
-                break
-            except Exception as e:
-                logger.error(f"Sync error: {e}")
-                time.sleep(60)
+
+        success = sync.pull_only()
+
+        print(f"Pull: {'✅ Success' if success else '❌ Failed'}")
+        print()
+        print("=" * 60)
+
+        sys.exit(0 if success else 1)
+
+    elif command == "push":
+        # Push-only mode (Local)
+        print(f"Mode: Push Only (Local)")
+        print(f"Agent: {agent_name}")
+        print()
+
+        # Check Git is installed
+        if not sync.check_git_installed():
+            sys.exit(1)
+
+        sync.initialize_repo()
+        success = sync.push_changes()
+
+        print(f"Push: {'✅ Success' if success else '❌ Failed'}")
+        print()
+        print("=" * 60)
+
+        sys.exit(0 if success else 1)
+
+    elif command == "sync":
+        # Full sync (pull + push)
+        print(f"Agent: {agent_name}")
+        print(f"Remote: {remote_url or 'Not configured'}")
+        print()
+
+        # Run initial sync
+        print("Running initial sync...")
+        pull_success, push_success = sync.run_sync()
+
+        print(f"Pull: {'✅ Success' if pull_success else '❌ Failed'}")
+        print(f"Push: {'✅ Success' if push_success else '❌ Failed'}")
+        print()
+
+        # Show status
+        status = sync.get_status()
+        print(f"Repository Status: {status.get('status', 'Unknown')}")
+        if status.get('changes'):
+            print(f"Changes ({status.get('changes_count', 0)}):")
+            for change in status['changes'][:5]:
+                print(f"  {change}")
+
+        print()
+        print("=" * 60)
+        print()
+
+        # Continue syncing every 5 minutes
+        if remote_url:
+            print("Starting continuous sync (every 5 minutes)...")
+            print("Press Ctrl+C to stop")
+            print()
+
+            cycle_count = 0
+
+            while True:
+                try:
+                    cycle_count += 1
+                    logger.info(f"=== Sync Cycle {cycle_count} ===")
+
+                    pull_success, push_success = sync.run_sync()
+
+                    if pull_success and push_success:
+                        logger.info(f"Cycle {cycle_count} completed successfully")
+                    else:
+                        logger.warning(f"Cycle {cycle_count} had errors")
+
+                    time.sleep(300)  # 5 minutes
+
+                except KeyboardInterrupt:
+                    logger.info("Git Sync shutting down (user interrupt)")
+                    break
+                except Exception as e:
+                    logger.error(f"Sync error: {e}")
+                    time.sleep(60)
+        else:
+            print("Note: No remote URL configured. Run once mode only.")
+            print("Set VAULT_GIT_REMOTE environment variable for continuous sync.")
+
+    elif command == "status":
+        # Show repository status
+        print(f"Agent: {agent_name}")
+        print()
+
+        status = sync.get_status()
+        print(f"Initialized: {status.get('initialized', False)}")
+        print(f"Status: {status.get('status', 'Unknown')}")
+        if status.get('changes'):
+            print(f"Changes ({status.get('changes_count', 0)}):")
+            for change in status['changes']:
+                print(f"  {change}")
+
+        print()
+        print("=" * 60)
+
+    elif command == "init":
+        # Initialize repository
+        print(f"Initializing repository for {agent_name}...")
+        print()
+
+        if sync.check_git_installed():
+            success = sync.initialize_repo()
+            if success:
+                print("✅ Repository initialized")
+            else:
+                print("❌ Initialization failed")
+                sys.exit(1)
+        else:
+            print("❌ Git not installed")
+            sys.exit(1)
+
     else:
-        print("Note: No remote URL configured. Run once mode only.")
-        print("Set VAULT_GIT_REMOTE environment variable for continuous sync.")
+        print(f"Unknown command: {command}")
+        print()
+        print("Usage: python git_sync.py <command>")
+        print()
+        print("Commands:")
+        print("  pull   - Pull changes from remote (Cloud VM)")
+        print("  push   - Push changes to remote (Local)")
+        print("  sync   - Full sync cycle (pull + push)")
+        print("  status - Show repository status")
+        print("  init   - Initialize Git repository")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

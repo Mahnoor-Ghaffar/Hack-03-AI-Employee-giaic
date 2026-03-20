@@ -161,6 +161,52 @@
         "check_disk_space",
         "check_memory"
       ]
+    },
+    {
+      "name": "twitter-post",
+      "module": ".claude.skills.twitter-post.twitter_skill",
+      "functions": [
+        "post_tweet",
+        "post_thread",
+        "get_history",
+        "get_stats"
+      ]
+    },
+    {
+      "name": "social-meta",
+      "module": ".claude.skills.social-meta.social_skill",
+      "functions": [
+        "post_facebook",
+        "post_instagram",
+        "post_instagram_carousel",
+        "post_to_both",
+        "get_account_info"
+      ]
+    },
+    {
+      "name": "personal-task-handler",
+      "module": ".claude.skills.personal-task-handler.personal_skill",
+      "functions": [
+        "create_task",
+        "get_task",
+        "update_task_status",
+        "update_task",
+        "delete_task",
+        "list_tasks",
+        "get_summary"
+      ]
+    },
+    {
+      "name": "odoo-mcp-server",
+      "module": "mcp.odoo_mcp.server",
+      "functions": [
+        "create_invoice",
+        "list_invoices",
+        "record_payment",
+        "get_partner",
+        "test_connection",
+        "get_account_balance"
+      ]
     }
   ],
   "mcpServers": {
@@ -235,6 +281,18 @@
       "env": {
         "VAULT_PATH": "AI_Employee_Vault",
         "PLATINUM_AGENT": "local_agent",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "odoo-mcp": {
+      "command": "python",
+      "args": ["mcp/odoo_mcp/server.py"],
+      "cwd": "E:\\New folder\\GIAIC-Q4\\sub-hack03\\Hack-03-AI-Employee-giaic",
+      "env": {
+        "ODOO_URL": "${ODOO_URL}",
+        "ODOO_DB": "${ODOO_DB}",
+        "ODOO_USERNAME": "${ODOO_USERNAME}",
+        "ODOO_PASSWORD": "${ODOO_PASSWORD}",
         "LOG_LEVEL": "INFO"
       }
     }
