@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health - AI Employee Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-robot"></i> AI Employee</h1>
+                <span class="tier-badge platinum">Platinum Tier</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tasks" class="nav-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tasks</span>
+                </a>
+                <a href="/approvals" class="nav-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approvals</span>
+                </a>
+                <a href="/email" class="nav-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email</span>
+                </a>
+                <a href="/social" class="nav-item">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Social Media</span>
+                </a>
+                <a href="/accounting" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Accounting</span>
+                </a>
+                <a href="/health" class="nav-item active">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Health</span>
+                </a>
+                <a href="/briefings" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Briefings</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot" id="system-status"></span>
+                    <span id="status-text">Checking...</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2>System Health Monitor</h2>
+                <div class="top-bar-actions">
+                    <button class="btn-refresh" onclick="loadHealthStatus()" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-wrapper">
+                <div class="health-page">
+                    <!-- Overall Status -->
+                    <div class="overall-status" id="overall-status">
+                        <div class="status-indicator-large">
+                            <i class="fas fa-circle-notch fa-spin"></i>
+                        </div>
+                        <div class="status-text">
+                            <h3>Loading status...</h3>
+                            <p>Fetching health data</p>
+                        </div>
+                    </div>
+                    
+                    <!-- System Resources -->
+                    <div class="resources-grid">
+                        <div class="resource-card">
+                            <div class="resource-header">
+                                <i class="fas fa-microchip"></i>
+                                <h4>CPU Usage</h4>
+                            </div>
+                            <div class="resource-body">
+                                <div class="resource-value" id="cpu-usage">--%</div>
+                                <div class="resource-bar">
+                                    <div class="resource-bar-fill" id="cpu-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="resource-card">
+                            <div class="resource-header">
+                                <i class="fas fa-memory"></i>
+                                <h4>Memory Usage</h4>
+                            </div>
+                            <div class="resource-body">
+                                <div class="resource-value" id="memory-usage">--%</div>
+                                <div class="resource-bar">
+                                    <div class="resource-bar-fill" id="memory-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="resource-card">
+                            <div class="resource-header">
+                                <i class="fas fa-hdd"></i>
+                                <h4>Disk Usage</h4>
+                            </div>
+                            <div class="resource-body">
+                                <div class="resource-value" id="disk-usage">--%</div>
+                                <div class="resource-bar">
+                                    <div class="resource-bar-fill" id="disk-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="resource-card">
+                            <div class="resource-header">
+                                <i class="fas fa-clock"></i>
+                                <h4>Uptime</h4>
+                            </div>
+                            <div class="resource-body">
+                                <div class="resource-value" id="uptime">--</div>
+                                <div class="resource-label">Hours</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Statistics -->
+                    <div class="statistics-grid">
+                        <div class="stat-box">
+                            <h4><i class="fas fa-clipboard-check"></i> Checks Performed</h4>
+                            <p id="checks-performed">0</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4><i class="fas fa-redo"></i> Processes Restarted</h4>
+                            <p id="processes-restarted">0</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4><i class="fas fa-bell"></i> Alerts Sent</h4>
+                            <p id="alerts-sent">0</p>
+                        </div>
+                        <div class="stat-box error">
+                            <h4><i class="fas fa-exclamation-circle"></i> Errors</h4>
+                            <p id="errors">0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Logs -->
+                    <div class="logs-section">
+                        <div class="card-header">
+                            <h3><i class="fas fa-file-alt"></i> Recent Logs</h3>
+                            <button class="btn-small" onclick="loadLogs()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="logs-container" id="logs-container">
+                            <div class="loading">Loading logs...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/health.js') }}"></script>
+</body>
+</html>

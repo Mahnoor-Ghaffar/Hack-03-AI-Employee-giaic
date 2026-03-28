@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Briefings - AI Employee Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-robot"></i> AI Employee</h1>
+                <span class="tier-badge platinum">Platinum Tier</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tasks" class="nav-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tasks</span>
+                </a>
+                <a href="/approvals" class="nav-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approvals</span>
+                </a>
+                <a href="/email" class="nav-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email</span>
+                </a>
+                <a href="/social" class="nav-item">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Social Media</span>
+                </a>
+                <a href="/accounting" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Accounting</span>
+                </a>
+                <a href="/health" class="nav-item">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Health</span>
+                </a>
+                <a href="/briefings" class="nav-item active">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Briefings</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot" id="system-status"></span>
+                    <span id="status-text">Checking...</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2>CEO Briefings</h2>
+                <div class="top-bar-actions">
+                    <button class="btn-refresh" onclick="loadBriefings()" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-wrapper">
+                <div class="briefings-page">
+                    <!-- Briefings List -->
+                    <div class="briefings-list-container">
+                        <div id="briefings-list">
+                            <div class="loading">Loading briefings...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Briefing Detail Modal -->
+                    <div id="briefing-modal" class="modal">
+                        <div class="modal-content xlarge">
+                            <div class="modal-header">
+                                <h3 id="modal-briefing-title">Briefing Details</h3>
+                                <button class="modal-close" onclick="closeBriefingModal()">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="modal-briefing-content">
+                                    <!-- Briefing content will be loaded here -->
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" onclick="closeBriefingModal()">Close</button>
+                                <button class="btn btn-primary" onclick="downloadBriefing()">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/briefings.js') }}"></script>
+</body>
+</html>

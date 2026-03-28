@@ -1,0 +1,5 @@
+date,description,amount,type
+2026-03-28,Salary Deposit,80000,credit
+2026-03-28,KFC Food,-2500,debit
+2026-03-28,Electric Bill,-12000,debit
+2026-03-28,Unknown Transfer,-90000,debit

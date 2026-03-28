@@ -64,3 +64,21 @@ source_file: {idea_filepath.name}
         except Exception as e:
             logger.error(f"Error creating action file for LinkedIn idea {idea_filepath.name}: {e}")
             raise # Re-raise to be caught by orchestrator
+
+
+if __name__ == "__main__":
+    """Run LinkedInWatcher in continuous mode for PM2"""
+    import sys
+    
+    vault_path = "AI_Employee_Vault"
+    watcher = LinkedInWatcher(vault_path=vault_path)
+    
+    logger.info("Starting LinkedInWatcher in continuous mode...")
+    logger.info(f"Monitoring: {vault_path}/Post_Ideas")
+    logger.info("Press Ctrl+C to stop")
+    
+    try:
+        watcher.run()  # This runs the infinite loop from BaseWatcher
+    except KeyboardInterrupt:
+        logger.info("LinkedInWatcher shutting down (user interrupt)")
+        sys.exit(0)

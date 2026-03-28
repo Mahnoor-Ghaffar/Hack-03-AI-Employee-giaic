@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks - AI Employee Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-robot"></i> AI Employee</h1>
+                <span class="tier-badge platinum">Platinum Tier</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tasks" class="nav-item active">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tasks</span>
+                </a>
+                <a href="/approvals" class="nav-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approvals</span>
+                </a>
+                <a href="/email" class="nav-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email</span>
+                </a>
+                <a href="/social" class="nav-item">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Social Media</span>
+                </a>
+                <a href="/accounting" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Accounting</span>
+                </a>
+                <a href="/health" class="nav-item">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Health</span>
+                </a>
+                <a href="/briefings" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Briefings</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot" id="system-status"></span>
+                    <span id="status-text">Checking...</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2>Task Management</h2>
+                <div class="top-bar-actions">
+                    <button class="btn-refresh" onclick="loadTasks()" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-wrapper">
+                <div class="tasks-page">
+                    <!-- Filter Bar -->
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label>Filter by Type:</label>
+                            <select id="filter-type" onchange="filterTasks()">
+                                <option value="all">All Types</option>
+                                <option value="email">Email</option>
+                                <option value="linkedin_post_request">LinkedIn Post</option>
+                                <option value="automation_test">Automation Test</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Filter by Priority:</label>
+                            <select id="filter-priority" onchange="filterTasks()">
+                                <option value="all">All Priorities</option>
+                                <option value="high">High</option>
+                                <option value="normal">Normal</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Search:</label>
+                            <input type="text" id="search-tasks" placeholder="Search tasks..." onkeyup="filterTasks()">
+                        </div>
+                    </div>
+                    
+                    <!-- Tasks Table -->
+                    <div class="tasks-table-container">
+                        <table class="tasks-table">
+                            <thead>
+                                <tr>
+                                    <th>Task Name</th>
+                                    <th>Type</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Preview</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tasks-table-body">
+                                <tr>
+                                    <td colspan="6" class="loading">Loading tasks...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Task Detail Modal -->
+                    <div id="task-modal" class="modal">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3 id="modal-task-title">Task Details</h3>
+                                <button class="modal-close" onclick="closeModal()">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="modal-task-content">
+                                    <!-- Task content will be loaded here -->
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                                <button class="btn btn-success" onclick="completeTask()">
+                                    <i class="fas fa-check"></i> Mark Complete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/tasks.js') }}"></script>
+</body>
+</html>

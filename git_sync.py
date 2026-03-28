@@ -84,24 +84,28 @@ class VaultGitSync:
     def initialize_repo(self) -> bool:
         """
         Initialize Git repository if not exists.
-        
+        Also sets up default git identity if not configured.
+
         Returns:
             True if successful
         """
         try:
+            # Set default git identity if not configured
+            self._setup_git_identity()
+            
             if not self.git_dir.exists():
                 logger.info("Initializing Git repository...")
-                
+
                 result = subprocess.run(
                     ['git', 'init'],
                     cwd=self.vault_path,
                     capture_output=True,
                     text=True
                 )
-                
+
                 if result.returncode == 0:
                     logger.info("Git repository initialized")
-                    
+
                     # Add remote if URL provided
                     if self.remote_url:
                         result = subprocess.run(
@@ -114,17 +118,82 @@ class VaultGitSync:
                             logger.info(f"Remote 'origin' added: {self.remote_url}")
                         else:
                             logger.warning(f"Could not add remote: {result.stderr}")
-                    
+                    else:
+                        logger.info("No remote URL configured - running in local-only mode")
+
                     return True
                 else:
                     logger.error(f"Git init failed: {result.stderr}")
                     return False
             else:
                 logger.debug("Git repository already exists")
-                return True
                 
+                # Ensure remote is configured if URL was provided
+                if self.remote_url:
+                    result = subprocess.run(
+                        ['git', 'remote', 'get-url', 'origin'],
+                        cwd=self.vault_path,
+                        capture_output=True,
+                        text=True
+                    )
+                    if result.returncode != 0:
+                        # No remote configured, add it
+                        subprocess.run(
+                            ['git', 'remote', 'add', 'origin', self.remote_url],
+                            cwd=self.vault_path,
+                            capture_output=True,
+                            text=True
+                        )
+                        logger.info(f"Added remote 'origin': {self.remote_url}")
+                
+                return True
+
         except Exception as e:
             logger.error(f"Error initializing Git repo: {e}")
+            return False
+
+    def _setup_git_identity(self) -> bool:
+        """
+        Set up default git user name and email if not configured.
+        
+        Returns:
+            True if successful or already configured
+        """
+        try:
+            # Check if user.name is configured
+            result = subprocess.run(
+                ['git', 'config', '--global', 'user.name'],
+                capture_output=True,
+                text=True
+            )
+            if not result.stdout.strip():
+                # Not configured, set default
+                subprocess.run(
+                    ['git', 'config', '--global', 'user.name', 'Mahnoor'],
+                    capture_output=True,
+                    text=True
+                )
+                logger.info("Set default git user.name: 'Mahnoor'")
+            
+            # Check if user.email is configured
+            result = subprocess.run(
+                ['git', 'config', '--global', 'user.email'],
+                capture_output=True,
+                text=True
+            )
+            if not result.stdout.strip():
+                # Not configured, set default
+                subprocess.run(
+                    ['git', 'config', '--global', 'user.email', 'mahnoor@example.com'],
+                    capture_output=True,
+                    text=True
+                )
+                logger.info("Set default git user.email: 'mahnoor@example.com'")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error setting up git identity: {e}")
             return False
 
     def check_git_installed(self) -> bool:
@@ -148,17 +217,29 @@ class VaultGitSync:
     def pull_changes(self, force: bool = False) -> bool:
         """
         Pull latest changes from remote with conflict avoidance.
+        If no remote is configured, logs a warning and returns True (graceful degradation).
 
         Args:
             force: If True, reset to remote state (discard local changes)
 
         Returns:
-            True if successful
+            True if successful or no remote configured (graceful degradation)
         """
         try:
             if not self.git_dir.exists():
                 logger.warning("Git repo not initialized, skipping pull")
                 return False
+
+            # Check if remote is configured
+            result = subprocess.run(
+                ['git', 'remote', 'get-url', 'origin'],
+                cwd=self.vault_path,
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                logger.warning("No remote configured - skipping pull (local-only mode)")
+                return True  # Graceful degradation
 
             logger.info("Pulling changes from remote...")
 
@@ -260,18 +341,30 @@ class VaultGitSync:
     def push_changes(self) -> bool:
         """
         Push local changes to remote.
-        
+        If no remote is configured, logs a warning and returns True (graceful degradation).
+
         Returns:
-            True if successful
+            True if successful or no remote configured (graceful degradation)
         """
         try:
             if not self.git_dir.exists():
                 logger.warning("Git repo not initialized, skipping push")
                 return False
-            
+
+            # Check if remote is configured
+            result = subprocess.run(
+                ['git', 'remote', 'get-url', 'origin'],
+                cwd=self.vault_path,
+                capture_output=True,
+                text=True
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                logger.warning("No remote configured - skipping push (local-only mode)")
+                return True  # Graceful degradation
+
             # Stage changes in sync folders
             logger.info("Staging changes...")
-            
+
             for folder in self.sync_folders:
                 folder_path = self.vault_path / folder
                 if folder_path.exists():
@@ -285,7 +378,7 @@ class VaultGitSync:
                         logger.debug(f"Staged: {folder}")
                     else:
                         logger.debug(f"Could not stage {folder}: {result.stderr}")
-            
+
             # Check if there are changes to commit
             result = subprocess.run(
                 ['git', 'status', '--porcelain'],
@@ -293,19 +386,19 @@ class VaultGitSync:
                 capture_output=True,
                 text=True
             )
-            
+
             if result.stdout.strip():
                 # Commit changes
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 commit_message = f"Auto-sync ({self.agent_name}): {timestamp}"
-                
+
                 result = subprocess.run(
                     ['git', 'commit', '-m', commit_message],
                     cwd=self.vault_path,
                     capture_output=True,
                     text=True
                 )
-                
+
                 if result.returncode == 0:
                     logger.info(f"Committed: {commit_message}")
                 else:

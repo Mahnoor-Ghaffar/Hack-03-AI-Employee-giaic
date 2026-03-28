@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounting - AI Employee Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-robot"></i> AI Employee</h1>
+                <span class="tier-badge platinum">Platinum Tier</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tasks" class="nav-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tasks</span>
+                </a>
+                <a href="/approvals" class="nav-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approvals</span>
+                </a>
+                <a href="/email" class="nav-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email</span>
+                </a>
+                <a href="/social" class="nav-item">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Social Media</span>
+                </a>
+                <a href="/accounting" class="nav-item active">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Accounting</span>
+                </a>
+                <a href="/health" class="nav-item">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Health</span>
+                </a>
+                <a href="/briefings" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Briefings</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot" id="system-status"></span>
+                    <span id="status-text">Checking...</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2>Accounting & Financial Reports</h2>
+                <div class="top-bar-actions">
+                    <button class="btn-refresh" onclick="loadAccounting()" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-wrapper">
+                <div class="accounting-page">
+                    <!-- Financial Summary -->
+                    <div class="financial-summary">
+                        <div class="summary-card">
+                            <h3><i class="fas fa-file-invoice-dollar"></i> Invoices</h3>
+                            <p id="invoice-count">0</p>
+                        </div>
+                        <div class="summary-card">
+                            <h3><i class="fas fa-exchange-alt"></i> Transactions</h3>
+                            <p id="transaction-count">0</p>
+                        </div>
+                        <div class="summary-card">
+                            <h3><i class="fas fa-file-alt"></i> Reports</h3>
+                            <p id="report-count">0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Accounting Sections -->
+                    <div class="accounting-sections">
+                        <!-- Invoices -->
+                        <div class="accounting-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-file-invoice"></i> Recent Invoices</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="invoices-list" class="invoices-list">
+                                    <div class="loading">Loading invoices...</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Transactions -->
+                        <div class="accounting-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-exchange-alt"></i> Recent Transactions</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="transactions-list" class="transactions-list">
+                                    <div class="loading">Loading transactions...</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Reports -->
+                        <div class="accounting-card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-file-alt"></i> Financial Reports</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="reports-list" class="reports-list">
+                                    <div class="loading">Loading reports...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/accounting.js') }}"></script>
+</body>
+</html>

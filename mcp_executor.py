@@ -29,6 +29,16 @@ logger = setup_logging(
     logger_name="mcp_executor"
 )
 
+# Vault Paths
+VAULT_PATH = Path("AI_Employee_Vault")
+PENDING_APPROVAL_PATH = VAULT_PATH / "Pending_Approval"
+APPROVED_PATH = VAULT_PATH / "Approved"
+REJECTED_PATH = VAULT_PATH / "Rejected"
+
+# Ensure directories exist
+for path in [PENDING_APPROVAL_PATH, APPROVED_PATH, REJECTED_PATH]:
+    path.mkdir(parents=True, exist_ok=True)
+
 
 class MCPExecutor:
     """
@@ -387,14 +397,106 @@ class MCPExecutor:
         }
 
 
+def run():
+    """
+    Run MCP Executor in continuous mode.
+    Monitors Pending_Approval folder and executes approved actions.
+    This is the main entry point for PM2.
+    """
+    logger.info("=== MCP Executor starting in continuous mode ===")
+    logger.info(f"Monitoring folder: {PENDING_APPROVAL_PATH}")
+
+    processed_files = set()
+    check_interval = 10  # Check every 10 seconds
+
+    while True:
+        try:
+            # Scan for approval files
+            if PENDING_APPROVAL_PATH.exists():
+                for approval_file in PENDING_APPROVAL_PATH.glob("*.md"):
+                    approval_id = approval_file.stem
+
+                    # Skip already processed files
+                    if approval_id in processed_files:
+                        continue
+
+                    try:
+                        content = approval_file.read_text(encoding="utf-8")
+
+                        # Check if approved
+                        if "approved: true" not in content.lower() and "status: approved" not in content.lower():
+                            continue  # Not yet approved, skip
+
+                        # Determine action type and extract data
+                        action_type = None
+                        action_data = {}
+
+                        if "type: email_send_approval" in content.lower():
+                            action_type = "gmail_send"
+                            # Extract recipient email
+                            for line in content.splitlines():
+                                if "recipient_email:" in line.lower():
+                                    action_data["to"] = line.split(":", 1)[1].strip().strip('"')
+                                elif "subject:" in line.lower():
+                                    action_data["subject"] = line.split(":", 1)[1].strip()
+
+                            # Get full email content
+                            if "full_email_content:" in content.lower():
+                                idx = content.find("full_email_content:")
+                                if idx != -1:
+                                    block = content[idx:]
+                                    if "|" in block:
+                                        action_data["body"] = block.split("|", 1)[1].strip()
+
+                        elif "type: linkedin_post_approval" in content.lower():
+                            action_type = "linkedin_post"
+                            # Get final post content
+                            if "final_post_content:" in content.lower():
+                                idx = content.find("final_post_content:")
+                                if idx != -1:
+                                    block = content[idx:]
+                                    if "|" in block:
+                                        action_data["content"] = block.split("|", 1)[1].strip()
+
+                        if action_type:
+                            logger.info(f"Found approved action: {action_type} (ID: {approval_id})")
+
+                            result = executor.execute_from_file(approval_file)
+
+                            logger.info(f"Execution result: {'success' if result.get('success') else 'failed'}")
+                            processed_files.add(approval_id)
+                        else:
+                            logger.warning(f"Unknown action type in {approval_id}, skipping")
+
+                    except Exception as e:
+                        logger.error(f"Error processing {approval_id}: {e}")
+                        processed_files.add(approval_id)  # Skip on error
+
+            time.sleep(check_interval)  # Poll every 10 seconds
+
+        except KeyboardInterrupt:
+            logger.info("MCP Executor shutting down (user interrupt)")
+            break
+        except Exception as e:
+            logger.error(f"Error in main loop: {e}")
+            time.sleep(5)
+
+
 if __name__ == "__main__":
-    # Test MCP Executor
-    print("MCP Executor Test")
-    print("=" * 40)
-    
-    executor = MCPExecutor()
-    stats = executor.get_execution_stats()
-    
-    print(f"Executed actions: {stats['total_executed']}")
-    print(f"Failed actions: {stats['total_failed']}")
-    print(f"Success rate: {stats['success_rate']:.1f}%")
+    # Run in continuous mode for PM2
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        # Test mode
+        print("MCP Executor Test")
+        print("=" * 40)
+
+        executor = MCPExecutor()
+        stats = executor.get_execution_stats()
+
+        print(f"Executed actions: {stats['total_executed']}")
+        print(f"Failed actions: {stats['total_failed']}")
+        print(f"Success rate: {stats['success_rate']:.1f}%")
+    else:
+        # Continuous mode (default for PM2)
+        run()

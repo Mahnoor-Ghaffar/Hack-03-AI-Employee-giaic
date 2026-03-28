@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Employee Dashboard - Platinum Tier</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-robot"></i> AI Employee</h1>
+                <span class="tier-badge platinum">Platinum Tier</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tasks" class="nav-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tasks</span>
+                    <span class="badge" id="tasks-badge">0</span>
+                </a>
+                <a href="/approvals" class="nav-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approvals</span>
+                    <span class="badge warning" id="approvals-badge">0</span>
+                </a>
+                <a href="/email" class="nav-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email</span>
+                    <span class="badge" id="email-badge">0</span>
+                </a>
+                <a href="/social" class="nav-item">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Social Media</span>
+                </a>
+                <a href="/accounting" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Accounting</span>
+                </a>
+                <a href="/health" class="nav-item">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Health</span>
+                </a>
+                <a href="/briefings" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Briefings</span>
+                </a>
+                <a href="/settings" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot" id="system-status"></span>
+                    <span id="status-text">Checking...</span>
+                </div>
+                <div class="last-updated">
+                    Last sync: <span id="last-sync">--</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2>Dashboard Overview</h2>
+                <div class="top-bar-actions">
+                    <button class="btn-refresh" onclick="refreshDashboard()" title="Refresh">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <div class="datetime" id="current-datetime">--</div>
+                </div>
+            </header>
+            
+            <div class="content-wrapper">
+                <!-- Quick Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon tasks">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-needs-action">0</h3>
+                            <p>Needs Action</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon approvals">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-pending-approval">0</h3>
+                            <p>Pending Approval</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon email">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-email">0</h3>
+                            <p>Emails</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon done">
+                            <i class="fas fa-check-double"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-done">0</h3>
+                            <p>Completed</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon signals">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-signals">0</h3>
+                            <p>Urgent Signals</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon updates">
+                            <i class="fas fa-sync"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="stat-updates">0</h3>
+                            <p>Cloud Updates</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Dashboard Grid -->
+                <div class="dashboard-grid">
+                    <!-- Pending Tasks -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-tasks"></i> Pending Tasks</h3>
+                            <a href="/tasks" class="view-all">View All</a>
+                        </div>
+                        <div class="card-content">
+                            <div id="pending-tasks-list" class="task-list">
+                                <div class="loading">Loading tasks...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pending Approvals -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-check-circle"></i> Pending Approvals</h3>
+                            <a href="/approvals" class="view-all">View All</a>
+                        </div>
+                        <div class="card-content">
+                            <div id="pending-approvals-list" class="approval-list">
+                                <div class="loading">Loading approvals...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Email Triage -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-envelope"></i> Email Triage</h3>
+                            <a href="/email" class="view-all">View All</a>
+                        </div>
+                        <div class="card-content">
+                            <div id="email-triage-list" class="email-list">
+                                <div class="loading">Loading emails...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- System Health -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-heartbeat"></i> System Health</h3>
+                            <a href="/health" class="view-all">Details</a>
+                        </div>
+                        <div class="card-content">
+                            <div id="health-status" class="health-status">
+                                <div class="loading">Loading health status...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Urgent Signals -->
+                    <div class="dashboard-card full-width">
+                        <div class="card-header">
+                            <h3><i class="fas fa-exclamation-triangle"></i> Urgent Signals</h3>
+                        </div>
+                        <div class="card-content">
+                            <div id="urgent-signals-list" class="signals-list">
+                                <div class="loading">Loading signals...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Activity -->
+                    <div class="dashboard-card full-width">
+                        <div class="card-header">
+                            <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                        </div>
+                        <div class="card-content">
+                            <div id="recent-activity-list" class="activity-list">
+                                <div class="loading">Loading activity...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

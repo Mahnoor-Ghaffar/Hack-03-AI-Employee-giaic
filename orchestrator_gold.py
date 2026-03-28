@@ -30,6 +30,7 @@ import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from subprocess import run, PIPE
+from typing import Tuple
 
 from log_manager import setup_logging
 from skills.vault_skills import get_vault
@@ -444,9 +445,19 @@ def process_pending_approvals():
 
     Silver Tier: Human-in-the-loop approval workflow
     """
-    logger.info("\n--- Checking Pending_Approval for actions requiring human approval ---")
+    logger.info("\n" + "=" * 60)
+    logger.info("=== HITL APPROVAL WORKFLOW ===")
+    logger.info("=" * 60)
+    
+    # Ensure Pending_Approval folder exists
+    PENDING_APPROVAL_PATH.mkdir(parents=True, exist_ok=True)
+    NEEDS_APPROVAL_PATH.mkdir(parents=True, exist_ok=True)
+    
+    logger.info(f"Checking Pending_Approval folder: {PENDING_APPROVAL_PATH}")
+    logger.info(f"Needs_Approval folder: {NEEDS_APPROVAL_PATH}")
 
     # First, move any new files from Pending_Approval to Needs_Approval
+    files_moved = 0
     for approval_file_path in PENDING_APPROVAL_PATH.glob('*.md'):
         try:
             content = approval_file_path.read_text()
@@ -460,8 +471,12 @@ def process_pending_approvals():
                 import shutil
                 shutil.move(str(approval_file_path), str(destination))
                 logger.info(f"Moved approval request to Needs_Approval: {approval_file_path.name}")
+                files_moved += 1
         except Exception as e:
             logger.error(f"Error moving approval file {approval_file_path.name}: {e}")
+    
+    if files_moved > 0:
+        logger.info(f"Moved {files_moved} file(s) from Pending_Approval to Needs_Approval")
 
     # Process files in Needs_Approval with blocking human-approval
     logger.info("\n--- Processing Needs_Approval with human-approval skill (BLOCKING) ---")
@@ -469,7 +484,9 @@ def process_pending_approvals():
     for approval_file_path in NEEDS_APPROVAL_PATH.glob('*.md'):
         try:
             approval_id = approval_file_path.stem
-            logger.info(f"Processing approval request: {approval_file_path.name}")
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Waiting for approval: {approval_file_path.name}")
+            logger.info(f"{'='*60}")
 
             # Use human-approval skill - THIS BLOCKS until human responds or timeout
             status, reason = request_approval(
@@ -479,7 +496,8 @@ def process_pending_approvals():
             )
 
             if status == ApprovalStatus.APPROVED:
-                logger.info(f"Approval GRANTED for {approval_id}: {reason}")
+                logger.info(f"\n{'✓'} APPROVED → Executing: {approval_id}")
+                logger.info(f"Approval reason: {reason}")
 
                 # Extract action type and data for mcp-executor
                 content = approval_file_path.read_text() if approval_file_path.exists() else ""
@@ -511,23 +529,30 @@ def process_pending_approvals():
 
                 if action_type:
                     # Trigger mcp-executor only after approval
+                    logger.info(f"Triggering mcp-executor for action: {action_type}")
                     result = trigger_mcp_executor(action_type, data_for_executor, approval_id)
 
                     if "Error" not in result:
-                        logger.info(f"mcp-executor completed successfully for {approval_id}")
+                        logger.info(f"✓ EXECUTION COMPLETE: {approval_id} - Success")
                     else:
-                        logger.error(f"mcp-executor failed for {approval_id}: {result}")
+                        logger.error(f"✗ EXECUTION FAILED: {approval_id} - {result}")
                 else:
                     logger.warning(f"Could not determine action type for {approval_id}")
 
             elif status == ApprovalStatus.REJECTED:
-                logger.warning(f"Approval REJECTED for {approval_id}: {reason}")
+                logger.info(f"\n{'✗'} REJECTED → Skipping: {approval_id}")
+                logger.info(f"Rejection reason: {reason}")
 
             elif status == ApprovalStatus.TIMEOUT:
-                logger.warning(f"Approval TIMEOUT for {approval_id}: {reason}")
+                logger.info(f"\n{'⏱'} TIMEOUT → Skipping: {approval_id}")
+                logger.info(f"Timeout reason: {reason}")
 
         except Exception as e:
             logger.error(f"Error processing approval file {approval_file_path.name}: {e}")
+    
+    logger.info("\n" + "=" * 60)
+    logger.info("=== HITL APPROVAL WORKFLOW COMPLETE ===")
+    logger.info("=" * 60)
 
 
 def orchestrate():

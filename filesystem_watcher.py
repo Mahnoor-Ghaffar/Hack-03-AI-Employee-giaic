@@ -14,6 +14,7 @@ from pathlib import Path
 import time
 import logging
 import asyncio
+import argparse
 
 from log_manager import setup_logging
 from skills.vault_skills import get_vault, write_plan
@@ -41,8 +42,8 @@ class InboxHandler(FileSystemEventHandler):
 
         source_path = Path(event.src_path)
 
-        # Only process .md files in the Inbox folder
-        if source_path.suffix.lower() != '.md':
+        # Only process .md and .txt files in the Inbox folder
+        if source_path.suffix.lower() not in ['.md', '.txt']:
             logger.debug(f"Ignoring non-markdown file: {source_path.name}")
             return
 
@@ -168,10 +169,51 @@ class FileSystemWatcher:
         except KeyboardInterrupt:
             self.stop()
 
+    def process_existing_files(self):
+        """
+        Process all existing .md and .txt files in the Inbox folder.
+        Useful for catching up on files that were added while the watcher was not running.
+        """
+        logger.info("Processing existing files in Inbox...")
+        
+        # Get all .md and .txt files in Inbox (not in subfolders)
+        md_files = [f for f in self.inbox_path.iterdir() 
+                    if f.is_file() and f.suffix.lower() in ['.md', '.txt']]
+        
+        if not md_files:
+            logger.info("No existing .md or .txt files found in Inbox.")
+            return
+        
+        logger.info(f"Found {len(md_files)} existing .md/.txt file(s) to process.")
+        
+        for file_path in md_files:
+            file_name = file_path.name
+            logger.info(f"Processing existing file: {file_name}")
+            
+            # Simulate the on_created event handling
+            move_result = self.event_handler.vault.move_to_needs_action(file_name)
+            logger.info(f"Move result: {move_result}")
+            
+            if "Error" not in move_result:
+                self.event_handler._trigger_task_planner(file_name)
+            else:
+                logger.error(f"Failed to move {file_name} to Needs_Action, skipping task-planner trigger.")
+        
+        logger.info(f"Completed processing {len(md_files)} existing file(s).")
+
 
 if __name__ == '__main__':
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='FileSystem Watcher for AI Employee - Silver Tier')
+    parser.add_argument(
+        '--process-existing',
+        action='store_true',
+        help='Process existing .md files in Inbox on startup'
+    )
+    args = parser.parse_args()
+
     # Example Usage: Monitor the AI_Employee_Vault/Inbox folder
-    
+
     # Ensure required directories exist
     vault_root = "AI_Employee_Vault"
     Path(vault_root).mkdir(exist_ok=True)
@@ -185,4 +227,9 @@ if __name__ == '__main__':
     logger.info("Press Ctrl+C to stop.")
 
     watcher = FileSystemWatcher(vault_root)
+    
+    # Process existing files if flag is set
+    if args.process_existing:
+        watcher.process_existing_files()
+    
     watcher.run()

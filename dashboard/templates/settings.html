@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - AI Employee Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-robot"></i> AI Employee</h1>
+                <span class="tier-badge platinum">Platinum Tier</span>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/tasks" class="nav-item">
+                    <i class="fas fa-tasks"></i>
+                    <span>Tasks</span>
+                </a>
+                <a href="/approvals" class="nav-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approvals</span>
+                </a>
+                <a href="/email" class="nav-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email</span>
+                </a>
+                <a href="/social" class="nav-item">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Social Media</span>
+                </a>
+                <a href="/accounting" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Accounting</span>
+                </a>
+                <a href="/health" class="nav-item">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>Health</span>
+                </a>
+                <a href="/briefings" class="nav-item">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Briefings</span>
+                </a>
+                <a href="/settings" class="nav-item active">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot" id="system-status"></span>
+                    <span id="status-text">Checking...</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <h2>System Settings</h2>
+            </header>
+            
+            <div class="content-wrapper">
+                <div class="settings-page">
+                    <!-- System Information -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-info-circle"></i> System Information</h3>
+                        </div>
+                        <div class="card-content settings-content">
+                            <div class="setting-row">
+                                <label>Dashboard Version:</label>
+                                <span>1.0.0 (Platinum Tier)</span>
+                            </div>
+                            <div class="setting-row">
+                                <label>Vault Path:</label>
+                                <span id="vault-path">AI_Employee_Vault</span>
+                            </div>
+                            <div class="setting-row">
+                                <label>Agent Type:</label>
+                                <span id="agent-type">--</span>
+                            </div>
+                            <div class="setting-row">
+                                <label>Last Sync:</label>
+                                <span id="last-sync-time">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Dashboard Settings -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-sliders-h"></i> Dashboard Settings</h3>
+                        </div>
+                        <div class="card-content settings-content">
+                            <div class="setting-row">
+                                <label>Auto-refresh Interval:</label>
+                                <select id="refresh-interval" onchange="updateSettings()">
+                                    <option value="10">10 seconds</option>
+                                    <option value="30" selected>30 seconds</option>
+                                    <option value="60">1 minute</option>
+                                    <option value="300">5 minutes</option>
+                                </select>
+                            </div>
+                            <div class="setting-row">
+                                <label>Theme:</label>
+                                <select id="theme" onchange="toggleTheme()">
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                            </div>
+                            <div class="setting-row">
+                                <label>Notifications:</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="notifications-enabled" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Vault Operations -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-folder"></i> Vault Operations</h3>
+                        </div>
+                        <div class="card-content settings-content">
+                            <div class="setting-row">
+                                <label>Sync Vault:</label>
+                                <button class="btn btn-primary" onclick="syncVault()">
+                                    <i class="fas fa-sync"></i> Sync Now
+                                </button>
+                            </div>
+                            <div class="setting-row">
+                                <label>Clear Cache:</label>
+                                <button class="btn btn-secondary" onclick="clearCache()">
+                                    <i class="fas fa-trash"></i> Clear Cache
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- About -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-question-circle"></i> About</h3>
+                        </div>
+                        <div class="card-content settings-content">
+                            <p>
+                                <strong>AI Employee Dashboard</strong> - Platinum Tier Implementation
+                            </p>
+                            <p>
+                                A comprehensive web dashboard for monitoring and managing your 
+                                autonomous AI Employee system. Built with Flask and modern web technologies.
+                            </p>
+                            <p class="small-text">
+                                Part of the GIAIC Hackathon 0: Building Autonomous FTEs in 2026
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>
